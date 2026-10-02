@@ -1,5 +1,9 @@
 # CodeShelf
 
+[![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/sagarkrjha/codeshelf/total?color=blue&label=Downloads&logo=github)](https://github.com/sagarkrjha/codeshelf/releases)
+[![GitHub Release](https://img.shields.io/github/v/release/sagarkrjha/codeshelf?color=green&label=Latest%20Release&logo=github)](https://github.com/sagarkrjha/codeshelf/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 ## Introduction
 
 **CodeShelf** is a developer-focused snippet knowledge system across desktop and IDE environments. It provides a unified, cross-platform workspace to capture, curate, search, and reuse code snippets seamlessly across daily development workflows.
@@ -123,3 +127,8 @@ pnpm run vscode:package
   - Import existing Markdown snippet files with automated frontmatter parsing.
 - **AI Settings**:
   - Click the **AI Settings** icon in the sidebar to configure your Gemini API Key and select your preferred model (e.g., `gemini-3.8-flash`).
+
+---
+
+> **A Quick Note to Our Community:**  
+> We warmly invite you to review our [Changelog](CHANGELOG.md) to explore recent updates and release notes. If you would like to help improve CodeShelf, report an issue, or propose a feature, we kindly encourage you to review our [Contribution Guidelines](CONTRIBUTION_GUIDELINE.md). Your support, feedback, and contributions make this project better for all developers!
