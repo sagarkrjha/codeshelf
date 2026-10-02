@@ -77,6 +77,9 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build Shared Package
+        run: pnpm --filter @codeshelf/shared build
+
       - name: Build Web Assets First
         run: pnpm run web:build
 
@@ -113,6 +116,9 @@ jobs:
 
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Build Shared Package
+        run: pnpm --filter @codeshelf/shared build
 
       - name: Package VSIX
         run: pnpm run vscode:package

@@ -46,6 +46,9 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build Shared Package
+        run: pnpm --filter @codeshelf/shared build
+
       - name: Typecheck Workspaces
         run: pnpm run typecheck
 
