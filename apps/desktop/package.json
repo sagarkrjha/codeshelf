@@ -5,6 +5,10 @@
   "description": "CodeShelf — Developer-focused snippet knowledge system desktop application",
   "author": "CodeShelf Team",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sagarkrjha/codeshelf.git"
+  },
   "type": "module",
   "main": "dist/main.js",
   "scripts": {
@@ -15,10 +19,10 @@
     "start": "pnpm run build && electron .",
     "dev": "pnpm run build:electron && electron . --dev",
     "typecheck": "tsc --noEmit",
-    "desktop:dist": "pnpm run build && electron-builder",
-    "desktop:dist:win": "pnpm run build && electron-builder --win",
-    "desktop:dist:mac": "pnpm run build && electron-builder --mac",
-    "desktop:dist:linux": "pnpm run build && electron-builder --linux",
+    "desktop:dist": "pnpm run build && electron-builder --publish never",
+    "desktop:dist:win": "pnpm run build && electron-builder --win --publish never",
+    "desktop:dist:mac": "pnpm run build && electron-builder --mac --publish never",
+    "desktop:dist:linux": "pnpm run build && electron-builder --linux --publish never",
     "desktop:dir": "pnpm run build && electron-builder --dir"
   },
   "build": {
@@ -54,6 +58,11 @@
         "deb"
       ],
       "category": "Development"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "sagarkrjha",
+      "repo": "codeshelf"
     }
   },
   "dependencies": {

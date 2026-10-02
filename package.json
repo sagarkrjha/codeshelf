@@ -6,6 +6,10 @@
   "description": "CodeShelf — Developer-focused snippet knowledge system across desktop and IDE",
   "author": "CodeShelf Team",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sagarkrjha/codeshelf.git"
+  },
   "scripts": {
     "build": "pnpm -r --if-present run build",
     "typecheck": "pnpm -r --if-present run typecheck",
