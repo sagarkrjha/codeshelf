@@ -202,6 +202,8 @@
     "build": "tsc",
     "bundle": "esbuild ./src/extension.ts --bundle --outfile=./dist/extension.js --external:vscode --format=cjs --platform=node",
     "package": "pnpm run bundle && vsce package --no-dependencies",
+    "publish:marketplace": "pnpm run bundle && vsce publish --no-dependencies",
+    "publish:ovsx": "pnpm run bundle && npx ovsx publish --packagePath $(ls *.vsix)",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

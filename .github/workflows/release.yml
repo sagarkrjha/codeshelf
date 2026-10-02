@@ -123,6 +123,20 @@ jobs:
       - name: Package VSIX
         run: pnpm run vscode:package
 
+      - name: Publish to VS Code Marketplace
+        if: env.VSCE_PAT != ''
+        working-directory: apps/vscode
+        run: npx @vscode/vsce publish --packagePath $(ls *.vsix) --pat ${{ secrets.VSCE_PAT }}
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      - name: Publish to Open VSX Registry
+        if: env.OVSX_PAT != ''
+        working-directory: apps/vscode
+        run: npx ovsx publish $(ls *.vsix) --pat ${{ secrets.OVSX_PAT }}
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+
       - name: Upload VS Code Extension (.vsix)
         uses: actions/upload-artifact@v4
         with:
