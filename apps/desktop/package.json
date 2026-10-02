@@ -15,8 +15,11 @@
     "start": "pnpm run build && electron .",
     "dev": "pnpm run build:electron && electron . --dev",
     "typecheck": "tsc --noEmit",
-    "desktop:dist": "pnpm run build && electron-builder --win",
-    "desktop:dir": "pnpm run build && electron-builder --win --dir"
+    "desktop:dist": "pnpm run build && electron-builder",
+    "desktop:dist:win": "pnpm run build && electron-builder --win",
+    "desktop:dist:mac": "pnpm run build && electron-builder --mac",
+    "desktop:dist:linux": "pnpm run build && electron-builder --linux",
+    "desktop:dir": "pnpm run build && electron-builder --dir"
   },
   "build": {
     "appId": "com.codeshelf.desktop",
@@ -37,6 +40,20 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.developer-tools"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Development"
     }
   },
   "dependencies": {

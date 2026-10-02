@@ -139,9 +139,22 @@ async function checkForUpdates(currentVersion: string): Promise<AppUpdateInfo> {
         size: a.size,
       }));
 
-      const setupAsset =
-        assets.find((a: any) => a.name.toLowerCase().includes('setup') && a.name.endsWith('.exe')) ||
-        assets.find((a: any) => a.name.endsWith('.exe'));
+      const platform = process.platform;
+      let setupAsset;
+      if (platform === 'win32') {
+        setupAsset =
+          assets.find((a: any) => a.name.toLowerCase().includes('setup') && a.name.endsWith('.exe')) ||
+          assets.find((a: any) => a.name.endsWith('.exe'));
+      } else if (platform === 'darwin') {
+        setupAsset =
+          assets.find((a: any) => a.name.endsWith('.dmg')) ||
+          assets.find((a: any) => a.name.endsWith('.zip'));
+      } else {
+        setupAsset =
+          assets.find((a: any) => a.name.endsWith('.AppImage')) ||
+          assets.find((a: any) => a.name.endsWith('.deb')) ||
+          assets.find((a: any) => a.name.endsWith('.rpm'));
+      }
 
       return {
         currentVersion,
