@@ -1,174 +1,125 @@
 # CodeShelf
 
-> **A developer-focused snippet knowledge system across desktop and IDE.**
+## Introduction
 
-CodeShelf enables engineers to capture, organize, search, edit, and reuse code snippets directly from their editor and desktop environment.
+**CodeShelf** is a developer-focused snippet knowledge system across desktop and IDE environments. It provides a unified, cross-platform workspace to capture, curate, search, and reuse code snippets seamlessly across daily development workflows.
+
+With native desktop applications for Windows, macOS, and Linux, paired with a dedicated Visual Studio Code extension, CodeShelf eliminates context switching and keeps your institutional code patterns and idiomatic solutions at your fingertips.
 
 ---
 
-## Architecture Overview
+## Solving Problem
 
-CodeShelf is organized as a monolithic repository:
+Software engineers frequently solve repetitive, non-trivial problems—such as bespoke concurrency patterns, complex configurations, API boilerplate, algorithm implementations, and database queries. However, managing this collective knowledge is traditionally fragmented:
 
-```text
-codeshelf/
-├── apps/
-│   ├── desktop/      # Electron + React + TypeScript desktop application
-│   └── vscode/       # VS Code extension for code capture and quick insertion
-├── packages/
-│   ├── shared/       # Shared TypeScript models, validation, and taxonomy
-│   └── ui/           # Shared UI primitives
-├── docs/             # Technical specifications and guides
-└── README.md         # Project documentation and status
+- **Lost in Git History & Chat Logs**: Useful snippets end up buried across PRs, Discord/Slack messages, scratchpads, and disposable gists.
+- **Context Switching Overhead**: Leaving your code editor to search browsers, documentation, or personal note-taking apps interrupts developer flow.
+- **Lack of Usage Context**: Plain snippets rarely explain *why* code was written, *when* to use it, or *how* edge cases should be handled.
+- **Outdated Code & No Versioning**: Code evolves over time, but static notes lack revision history, visual diffs, and change tracking.
+- **Desynchronized Environments**: Desktop note tools don't integrate directly with code editors, requiring manual copy-pasting and formatting.
+
+**How CodeShelf solves this:**
+- **Single Source of Truth**: Centralized, local-first storage synchronized bidirectionally between your desktop app and IDE.
+- **In-Editor Capture & Insertion**: Save highlighted editor code or insert curated snippets instantly using global VS Code hotkeys without switching windows.
+- **Comprehensive Usage Framework**: Built-in What / Why / When / How documentation schema and language-agnostic AI autofill using modern Gemini models.
+- **Revision History & Visual Diffs**: Automatic snapshotting on every edit with Myers/LCS visual diffing and one-click rollback.
+- **Portable & Future-Proof**: Stored as clean, portable Markdown with YAML frontmatter for seamless Git integration and backup exports.
+
+---
+
+## Installations
+
+### 1. Pre-built Binaries (Recommended)
+
+Download the latest release for your platform from the [GitHub Releases](https://github.com/sagarkrjha/codeshelf/releases/latest) page:
+
+- **Windows**:
+  - Installer: `CodeShelf.Setup.<version>.exe`
+  - Portable: `CodeShelf.<version>.exe`
+- **macOS**:
+  - Apple Silicon / Universal: `CodeShelf-<version>-arm64.dmg`
+- **Linux**:
+  - Debian / Ubuntu: `codeshelf-desktop_<version>_amd64.deb`
+  - Universal Linux: `CodeShelf-<version>.AppImage`
+- **VS Code Extension**:
+  - Direct VSIX package: `codeshelf-<version>.vsix`
+
+#### Installing the VS Code Extension (`.vsix`):
+```bash
+code --install-extension codeshelf-<version>.vsix
 ```
+*Or via VS Code UI: Extensions view (`Ctrl+Shift+X`) -> `...` (Views and More Actions) -> **Install from VSIX...***
 
 ---
 
-## Workspace Setup
+### 2. Building from Source
 
-### Prerequisites
-- **Node.js**: v18+ (tested with v24)
+#### Prerequisites
+- **Node.js**: v20 or v22+
 - **pnpm**: v10+ (tested with v12)
 
-### Installation
-
+#### Steps
 ```bash
 # Clone the repository
-git clone <repo-url>
+git clone https://github.com/sagarkrjha/codeshelf.git
 cd codeshelf
 
-# Install all workspace dependencies
+# Install dependencies across all workspaces
 pnpm install
 
-# Build all packages
+# Build shared libraries and applications
 pnpm run build
 
-# Run type checks across packages
-pnpm run typecheck
-
-# Run tests
+# Run unit tests and type checks
 pnpm run test
+pnpm run typecheck
 ```
 
----
-
-## Current Status
-
-### Phase 1: Foundation (Completed)
-- [x] Monorepo configuration (pnpm workspaces, root scripts, base `tsconfig`).
-- [x] `@codeshelf/shared` package with snippet models, validation, and taxonomy constants.
-- [x] `@codeshelf/desktop` application shell (Electron + React + Vite + dark mode theme + local storage).
-- [x] `@codeshelf/vscode` extension shell (capture, search, and insert commands).
-
-### Phase 2: Core Snippet Workflow (Completed)
-- [x] Full Desktop CRUD (create, view, edit with prefilled form, delete with confirmation).
-- [x] Syntax-highlighted code viewer with PrismJS for multiple languages.
-- [x] Multi-facet filtering by domain, technology, and tags.
-- [x] Fast copy code to clipboard with visual confirmation.
-- [x] Copy code as Markdown (```````{language}\n{code}\n```````) directly to clipboard.
-- [x] Smart Details Autofill from code (heuristic extraction of title, language, domain, technology, tags, complexity).
-- [x] Snippet version increments and complexity metrics (Time & Space).
-
-### Phase 3: Search & Markdown Integration (Completed)
-- [x] Portable YAML frontmatter Markdown serialization & parsing (`@codeshelf/shared`).
-- [x] Rich Markdown preview rendering for snippet explanations (`marked`).
-- [x] Single snippet Markdown export (`.md`) and full collection backup export (`.json`).
-- [x] Drag-and-drop / file upload Markdown import with instant schema parsing.
-- [x] Advanced query parsing with prefix filters (`lang:<l>`, `tag:<t>`, `domain:<d>`) and sort options.
-
-### Phase 4: IDE Extension Capabilities (Completed)
-- [x] Multi-step quick code capture (`Ctrl+Alt+S` / `Cmd+Alt+S`) with smart prefilled heuristics.
-- [x] Dedicated CodeShelf Activity Bar icon and Snippets Explorer sidebar tree view.
-- [x] Interactive Command Palette snippet search with live preview (`Ctrl+Alt+F` / `Cmd+Alt+F`).
-- [x] Direct snippet insertion at cursor position (`Ctrl+Alt+I` / `Cmd+Alt+I`).
-- [x] Context menu integration (editor right-click capture, tree item actions, copy raw/markdown code).
-- [x] Batch export snippets to Markdown files directly from VS Code.
-- [x] Check for updates command (`codeshelf.checkForUpdates`) and background auto-check.
-
-### Phase 5: Versioning & Synchronization (Completed)
-- [x] Automated snippet revision history & snapshots (`v1`, `v2`, etc.).
-- [x] Line-by-line diffing engine (`computeLineDiff`) using LCS algorithms (`@codeshelf/shared`).
-- [x] Visual diff viewer with color-coded additions/removals in Desktop app.
-- [x] One-click revision rollback restoring past versions.
-- [x] Optional revision summary / commit notes when updating snippets.
-- [x] Git-compatible sync manifest export mapping snippets to domain folders.
-- [x] Conflict-aware backup restoration and timestamp-based history merging.
-- [x] Real-time bidirectional synchronization between Desktop and VS Code extension via `~/.codeshelf/snippets.json`.
-
-### Phase 6: Advanced Capabilities (Completed)
-- [x] Multi-dimensional similarity scoring engine (`@codeshelf/shared`).
-- [x] Semantic query intent ranking mode for natural-language discovery.
-- [x] "Related Knowledge" recommendations linking top similar snippets.
-- [x] Smart heuristic code analysis, complexity estimation, and automated tag generation.
-
-### Phase 7: Application Updates & Distribution (Completed)
-- [x] Desktop in-app update notification banner and interactive modal (`UpdateModal.tsx`).
-- [x] In-app download progress tracking and direct installer launcher.
-- [x] Official GitHub Releases API integration with SemVer comparison logic.
-- [x] Windows NSIS setup wizard (`.exe`), portable executable (`.exe`), and VS Code bundle (`.vsix`).
-
-### Phase 8: Modern Architecture & Tooling (Completed)
-- [x] Full migration from `npm` to `pnpm` (v12) with hoisted native linking.
-- [x] Domain-sliced, feature-based directory structure across all workspaces (`packages/shared`, `apps/desktop`, `apps/vscode`).
-- [x] WHATWG URL API adoption throughout networking layers (zero `DEP0169` deprecation warnings).
-- [x] Strict Semantic Versioning policy (`MAJOR.MINOR.PATCH`) enforced for all fixes and features.
-
-### Phase 9: Flexible Taxonomy & Adaptive Workspace Views (Completed)
-- [x] **Flexible Categorization**: Custom categories/domains, dynamic taxonomy aggregation (`extractAllCategories`, `extractCategorySubcategories`), hierarchical subcategory tree views, and suggestion datalists.
-- [x] **Toggleable Sidebars & Focus Mode**: Collapsible primary navigation sidebar (`Ctrl+B` / `Cmd+B`) and collapsible snippets list (`Ctrl+Shift+B` / `Cmd+Shift+B`) for distraction-free code reading.
-- [x] **Filters in Modal Views**: Multi-faceted interactive Filter Modal (`FilterModal.tsx`) with category, subcategory, technology, language, usage, and complexity filters; in-modal search and diff line filtering in `VersionHistoryModal`.
-
----
-
-## Installation & Packages
-
-### 1. VS Code Extension (`.vsix`)
-The installable extension bundle is available at:
-`apps/vscode/codeshelf-0.1.1.vsix`
-
-**Command line installation:**
+#### Build Platform Packages
 ```bash
-code --install-extension apps/vscode/codeshelf-0.1.1.vsix
-```
-
-**VS Code UI installation:**
-1. Open VS Code.
-2. Navigate to Extensions (`Ctrl+Shift+X`).
-3. Click the `...` (More Actions) menu at the top right of the Extensions view.
-4. Select **Install from VSIX...** and choose `apps/vscode/codeshelf-0.1.1.vsix`.
-
----
-
-### 2. Desktop Application (`.exe`)
-The desktop installers and executables are built at:
-- **Windows Installer (NSIS)**: `apps/desktop/release/CodeShelf Setup 0.1.1.exe`
-- **Portable Executable**: `apps/desktop/release/CodeShelf 0.1.1.exe` (runs directly without installation)
-- **Unpacked Folder**: `apps/desktop/release/win-unpacked/CodeShelf.exe`
-
-**Packaging commands:**
-```bash
-# Build desktop installer and portable executable
+# Build desktop package for your current OS
 pnpm run desktop:dist
 
-# Build VS Code extension package (.vsix)
+# Target specific desktop platforms
+pnpm run desktop:dist:win     # Windows NSIS & Portable
+pnpm run desktop:dist:mac     # macOS DMG & Zip
+pnpm run desktop:dist:linux   # Linux AppImage & deb
+
+# Package the VS Code extension (.vsix)
 pnpm run vscode:package
 ```
 
 ---
 
-## Development Guidelines
+## Usage
 
-### 1. Semantic Versioning (SemVer)
-All packages and applications in the repository adhere to strict Semantic Versioning (`MAJOR.MINOR.PATCH`):
-- **PATCH** (`x.y.Z+1`): Applied for every bug fix, security patch, runtime deprecation/warning fix, performance enhancement, or refactoring.
-- **MINOR** (`x.Y+1.0`): Applied for every new user-facing feature, new command, or backwards-compatible capability addition.
-- **MAJOR** (`X+1.0.0`): Applied for breaking architectural changes or storage schema migrations.
+### In Visual Studio Code
 
-When introducing a fix or feature, bump the corresponding `package.json` version in the affected workspace(s) and synchronize release tags (`vMAJOR.MINOR.PATCH`).
+| Action | Shortcut / Command | Description |
+| :--- | :--- | :--- |
+| **Save Snippet with Heuristics** | `Ctrl+Alt+S` / `Cmd+Alt+S` | Captures highlighted code and pre-fills title, language, and tags. |
+| **Save Snippet with AI Autofill** | `CodeShelf: Save Selection to CodeShelf with AI` | Uses Gemini AI to auto-generate title, description, and What/Why/When/How sections. |
+| **Quick Search & Preview** | `Ctrl+Alt+F` / `Cmd+Alt+F` | Fuzzy search snippet titles, descriptions, and tags with a live preview modal. |
+| **Insert Snippet at Cursor** | `Ctrl+Alt+I` / `Cmd+Alt+I` | Selects a snippet and inserts its code directly into the active editor. |
+| **Generate Commit Message** | `CodeShelf: Generate Git Commit Message with AI` | Analyzes staged diffs and generates conventional commit messages. |
+| **Set Gemini API Key** | `CodeShelf: Set Gemini API Key` | Stores your Google Gemini API key securely in VS Code SecretStorage. |
+| **Snippets Explorer** | Activity Bar Icon | Explore snippets grouped by categories and subcategories in the sidebar tree. |
 
-### 2. Feature-Based Workspace Structure
-Each workspace organizes code around distinct domain features rather than flat technical layers:
-- **`src/features/<feature-name>/`**: Colocates components, custom hooks, utilities, and unit tests specific to that feature (e.g. `snippets`, `search`, `updates`, `export-import`).
-- **`src/components/common/`**: Houses shared UI building blocks (buttons, modals, input elements, badges) reused across features.
-- **`packages/shared/src/features/`**: Modular domain logic (autofill, diffing, similarity, markdown, update checks) tested beside their implementation.
+---
 
+### In CodeShelf Desktop
+
+- **Browse & Filter**: Filter snippets by category, subcategory, programming language, technology tag, or complexity.
+- **Search**: Use global instant search with prefix filters (e.g. `lang:typescript`, `tag:react`, `domain:frontend`).
+- **Create & Edit**:
+  - Create snippets manually or use the **AI Autofill** button to analyze code and generate title, metadata, and structured What/Why/When/How usage docs.
+  - Markdown editor supports live preview, multiple syntax-highlighted code blocks, and custom usage notes.
+- **Version History & Rollback**:
+  - Open **History** on any snippet to view past revisions.
+  - Inspect color-coded additions and deletions via the built-in visual diff engine.
+  - Roll back to any prior version with one click.
+- **Import & Export**:
+  - Export individual snippets as Markdown (`.md`) or the complete database as JSON.
+  - Import existing Markdown snippet files with automated frontmatter parsing.
+- **AI Settings**:
+  - Click the **AI Settings** icon in the sidebar to configure your Gemini API Key and select your preferred model (e.g., `gemini-3.8-flash`).
