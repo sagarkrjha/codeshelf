@@ -56,7 +56,7 @@ export function registerAiCommands(
       }
 
       // Ask user to pick their preferred model
-      const modelItems: vscode.QuickPickItem[] = AVAILABLE_GEMINI_MODELS.map((m) => ({
+      const modelItems: vscode.QuickPickItem[] = AVAILABLE_GEMINI_MODELS.map((m: { id: string; name: string }) => ({
         label: m.id,
         description: m.name,
       }));

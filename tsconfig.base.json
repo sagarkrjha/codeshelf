@@ -22,9 +22,6 @@
     "sourceMap": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "allowJs": false,
-    "paths": {
-      "@codeshelf/shared": ["./packages/shared/src/index.ts"]
-    }
+    "allowJs": false
   }
 }

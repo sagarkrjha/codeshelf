@@ -4,12 +4,12 @@
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022"],
-    "rootDir": "./src",
-    "outDir": "./dist",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "types": ["node"],
+    "noEmit": true,
     "verbatimModuleSyntax": false,
-    "erasableSyntaxOnly": false,
-    "noEmit": true
+    "erasableSyntaxOnly": false
   },
   "include": ["src/**/*"]
 }
