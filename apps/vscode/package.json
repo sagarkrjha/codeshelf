@@ -1,0 +1,215 @@
+{
+  "name": "codeshelf",
+  "displayName": "CodeShelf",
+  "description": "CodeShelf IDE Extension — Save, search, and insert snippets seamlessly",
+  "version": "0.2.2",
+  "publisher": "codeshelf",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sagarkrjha/codeshelf.git"
+  },
+  "license": "MIT",
+  "engines": {
+
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Snippets",
+    "Programming Languages",
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codeshelf-sidebar",
+          "title": "CodeShelf",
+          "icon": "$(book)"
+        }
+      ]
+    },
+    "views": {
+      "codeshelf-sidebar": [
+        {
+          "id": "codeshelf.snippetsView",
+          "name": "Snippets Explorer"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "codeshelf.saveSelection",
+        "title": "CodeShelf: Save Selection as Snippet",
+        "icon": "$(plus)"
+      },
+      {
+        "command": "codeshelf.searchSnippets",
+        "title": "CodeShelf: Search Snippets",
+        "icon": "$(search)"
+      },
+      {
+        "command": "codeshelf.insertSnippet",
+        "title": "CodeShelf: Insert Snippet",
+        "icon": "$(symbol-snippet)"
+      },
+      {
+        "command": "codeshelf.refreshSnippets",
+        "title": "CodeShelf: Refresh Snippets",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "codeshelf.deleteSnippet",
+        "title": "CodeShelf: Delete Snippet",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "codeshelf.exportSnippets",
+        "title": "CodeShelf: Export Snippets to Markdown",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "codeshelf.copySnippet",
+        "title": "CodeShelf: Copy Code",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "codeshelf.copySnippetAsMarkdown",
+        "title": "CodeShelf: Copy Code as Markdown",
+        "icon": "$(markdown)"
+      },
+      {
+        "command": "codeshelf.checkForUpdates",
+        "title": "CodeShelf: Check for Updates",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "codeshelf.saveSelectionWithAi",
+        "title": "CodeShelf: AI Autofill & Save Snippet",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "codeshelf.generateCommitMessage",
+        "title": "CodeShelf: Generate AI Commit Message",
+        "icon": "$(git-commit)"
+      },
+      {
+        "command": "codeshelf.setGeminiApiKey",
+        "title": "CodeShelf: Configure Gemini API Key",
+        "icon": "$(key)"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "codeshelf.saveSelectionWithAi",
+          "group": "codeshelf@1",
+          "when": "editorHasSelection"
+        },
+        {
+          "command": "codeshelf.saveSelection",
+          "group": "codeshelf@2",
+          "when": "editorHasSelection"
+        },
+        {
+          "command": "codeshelf.generateCommitMessage",
+          "group": "codeshelf@3",
+          "when": "editorHasSelection"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "codeshelf.saveSelectionWithAi",
+          "when": "view == codeshelf.snippetsView",
+          "group": "navigation@0"
+        },
+        {
+          "command": "codeshelf.saveSelection",
+          "when": "view == codeshelf.snippetsView",
+          "group": "navigation@1"
+        },
+        {
+          "command": "codeshelf.setGeminiApiKey",
+          "when": "view == codeshelf.snippetsView",
+          "group": "navigation@2"
+        },
+        {
+          "command": "codeshelf.refreshSnippets",
+          "when": "view == codeshelf.snippetsView",
+          "group": "navigation@3"
+        },
+        {
+          "command": "codeshelf.exportSnippets",
+          "when": "view == codeshelf.snippetsView",
+          "group": "navigation@4"
+        },
+        {
+          "command": "codeshelf.checkForUpdates",
+          "when": "view == codeshelf.snippetsView",
+          "group": "navigation@5"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "codeshelf.insertSnippet",
+          "when": "view == codeshelf.snippetsView && viewItem == snippetItem",
+          "group": "inline@1"
+        },
+        {
+          "command": "codeshelf.copySnippet",
+          "when": "view == codeshelf.snippetsView && viewItem == snippetItem",
+          "group": "inline@2"
+        },
+        {
+          "command": "codeshelf.copySnippetAsMarkdown",
+          "when": "view == codeshelf.snippetsView && viewItem == snippetItem",
+          "group": "inline@3"
+        },
+        {
+          "command": "codeshelf.deleteSnippet",
+          "when": "view == codeshelf.snippetsView && viewItem == snippetItem",
+          "group": "inline@4"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "codeshelf.saveSelectionWithAi",
+        "key": "ctrl+alt+a",
+        "mac": "cmd+alt+a",
+        "when": "editorHasSelection"
+      },
+      {
+        "command": "codeshelf.saveSelection",
+        "key": "ctrl+alt+s",
+        "mac": "cmd+alt+s",
+        "when": "editorHasSelection"
+      },
+      {
+        "command": "codeshelf.insertSnippet",
+        "key": "ctrl+alt+i",
+        "mac": "cmd+alt+i",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "codeshelf.searchSnippets",
+        "key": "ctrl+alt+f",
+        "mac": "cmd+alt+f"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "tsc",
+    "bundle": "esbuild ./src/extension.ts --bundle --outfile=./dist/extension.js --external:vscode --format=cjs --platform=node",
+    "package": "pnpm run bundle && vsce package --no-dependencies",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@codeshelf/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^4.0.0",
+    "esbuild": "^0.28.2"
+  }
+}
