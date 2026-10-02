@@ -1,6 +1,6 @@
 {
   "name": "@codeshelf/shared",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "private": true,
   "description": "Shared types, schemas, and utilities for CodeShelf",
   "author": "CodeShelf Team",

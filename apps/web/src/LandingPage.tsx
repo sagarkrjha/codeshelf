@@ -182,7 +182,7 @@ export function LandingPage({ onOpenWebApp }: LandingPageProps) {
             </div>
             <ul className="text-xs text-text-muted space-y-2 mb-6 flex-1">
               <li className="flex items-start gap-2"><span className="text-blue-400 mt-0.5">✓</span> No installation required</li>
-              <li className="flex items-start gap-2"><span className="text-blue-400 mt-0.5">✓</span> Snippets stored in browser localStorage</li>
+              <li className="flex items-start gap-2"><span className="text-blue-400 mt-0.5">✓</span> Snippets & config stored on your device in .codeshelf</li>
               <li className="flex items-start gap-2"><span className="text-blue-400 mt-0.5">✓</span> Full AI autofill, search, and version history</li>
               <li className="flex items-start gap-2"><span className="text-blue-400 mt-0.5">✓</span> Export backup anytime as JSON or Markdown</li>
             </ul>

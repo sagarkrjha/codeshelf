@@ -18,12 +18,25 @@ import { useSnippetSearch } from './features/search/index';
 import { UpdateBanner, UpdateModal, useAppUpdate } from './features/updates/index';
 import { GeminiApiKeyModal } from './features/ai/index';
 import { getLocalConfig } from './features/storage/storage';
+import { FolderConnectBanner, useFileSystemStorage } from './features/storage/index';
 
 export function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const jsonInputRef = useRef<HTMLInputElement>(null);
   const [isGeminiKeyModalOpen, setIsGeminiKeyModalOpen] = useState(false);
   const [hasGeminiKey, setHasGeminiKey] = useState<boolean>(() => Boolean(getLocalConfig().geminiApiKey));
+  const [isFolderBannerDismissed, setIsFolderBannerDismissed] = useState(false);
+
+  // File System Access API — tracks connection to ~/.codeshelf on the user's device
+  const {
+    isSupported: isFsSupported,
+    status: fsStatus,
+    dirName: fsDirName,
+    isLoading: isFsLoading,
+    isExpectedDir: isFsExpectedDir,
+    connect: connectFolder,
+    requestPermission: requestFsPermission,
+  } = useFileSystemStorage();
 
 
   // Feature hooks separating business logic and state
@@ -134,6 +147,19 @@ export function App() {
           appVersion={appVersion}
           onOpenUpdateModal={() => setIsUpdateModalOpen(true)}
           onDismiss={() => setIsBannerDismissed(true)}
+        />
+      )}
+
+      {/* File System Folder Connect Banner — web only, not shown in Electron */}
+      {isFsSupported && !window.codeshelfApi && !isFolderBannerDismissed && (
+        <FolderConnectBanner
+          status={fsStatus}
+          dirName={fsDirName}
+          isExpectedDir={isFsExpectedDir}
+          isLoading={isFsLoading}
+          onConnect={connectFolder}
+          onRequestPermission={requestFsPermission}
+          onDismiss={() => setIsFolderBannerDismissed(true)}
         />
       )}
 

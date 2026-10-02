@@ -4,6 +4,20 @@ All notable changes to the **CodeShelf** project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-10-02
+
+### Added
+- **Native File System Storage for Web App**:
+  - Implemented File System Access API adapter (`fileSystemStorage.ts`) to persist snippets directly in `.codeshelf/snippets.json` and configuration in `.codeshelf/config.json` on the user's device.
+  - Added folder connection banner (`FolderConnectBanner.tsx`) and hook (`useFileSystemStorage.ts`) with persistent directory handle management in IndexedDB across reloads.
+  - Real-time multi-tab synchronization via `BroadcastChannel` with an in-memory cache layer.
+
+### Changed
+- **Eliminated localStorage and globalState Storage**:
+  - Web: Removed all `localStorage` usage for snippets and config data; everything lives in the `.codeshelf/` file system directory on the user's device.
+  - VS Code Extension: Removed VS Code `globalState` fallback; snippets and configuration read and write directly to `~/.codeshelf/snippets.json` and `~/.codeshelf/config.json`.
+  - Desktop App: Verified and maintained direct file persistence to `~/.codeshelf/` with external file watcher.
+
 ---
 
 ## [0.2.2] - 2026-10-02

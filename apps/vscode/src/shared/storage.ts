@@ -5,8 +5,6 @@ import * as os from 'node:os';
 import type { Snippet, CodeShelfConfig } from '@codeshelf/shared';
 import {
   SEED_SNIPPETS,
-  CODESHELF_STORAGE_KEY,
-  CODESHELF_CONFIG_KEY,
   CODESHELF_DIR_NAME,
   CODESHELF_SNIPPETS_FILENAME,
   CODESHELF_CONFIG_FILENAME,
@@ -16,8 +14,6 @@ import {
   mergeSnippets,
 } from '@codeshelf/shared';
 
-export const STORAGE_KEY = CODESHELF_STORAGE_KEY;
-export const CONFIG_KEY = CODESHELF_CONFIG_KEY;
 export const CODESHELF_DIR = path.join(os.homedir(), CODESHELF_DIR_NAME);
 export const SNIPPETS_FILE = path.join(CODESHELF_DIR, CODESHELF_SNIPPETS_FILENAME);
 export const CONFIG_FILE = path.join(CODESHELF_DIR, CODESHELF_CONFIG_FILENAME);
@@ -32,7 +28,7 @@ export class SnippetsStorage {
   private lastKnownFileContent = '';
   private lastKnownConfigContent = '';
 
-  constructor(private readonly context: vscode.ExtensionContext) {}
+  constructor(_context?: vscode.ExtensionContext) {}
 
   public getSnippets = (): Snippet[] => {
     try {
@@ -48,21 +44,7 @@ export class SnippetsStorage {
       console.error('CodeShelf: Error reading snippets file:', err);
     }
 
-    // Fallback & Migration: check VS Code globalState
-    const fromGlobalState = this.context.globalState.get<Snippet[]>(STORAGE_KEY, []);
-    if (fromGlobalState && fromGlobalState.length > 0) {
-      try {
-        ensureDirExists(CODESHELF_DIR);
-        const data = JSON.stringify(fromGlobalState, null, 2);
-        this.lastKnownFileContent = data;
-        fs.writeFileSync(SNIPPETS_FILE, data, 'utf-8');
-      } catch (err) {
-        console.error('CodeShelf: Error migrating snippets to file:', err);
-      }
-      return fromGlobalState;
-    }
-
-    // Default seed snippets if brand new
+    // Default seed snippets if brand new and file does not exist
     try {
       ensureDirExists(CODESHELF_DIR);
       const data = JSON.stringify(SEED_SNIPPETS, null, 2);
@@ -95,10 +77,8 @@ export class SnippetsStorage {
       const data = JSON.stringify(finalSnippets, null, 2);
       this.lastKnownFileContent = data;
       fs.writeFileSync(SNIPPETS_FILE, data, 'utf-8');
-      await this.context.globalState.update(STORAGE_KEY, finalSnippets);
     } catch (err) {
       console.error('CodeShelf: Error writing snippets file:', err);
-      await this.context.globalState.update(STORAGE_KEY, snippets);
     }
   };
 
@@ -134,7 +114,6 @@ export class SnippetsStorage {
       const data = JSON.stringify(merged, null, 2);
       this.lastKnownConfigContent = data;
       fs.writeFileSync(CONFIG_FILE, data, 'utf-8');
-      await this.context.globalState.update(CONFIG_KEY, merged);
       return merged;
     } catch (err) {
       console.error('CodeShelf: Error saving config file:', err);
