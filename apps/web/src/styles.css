@@ -36,7 +36,7 @@ body {
   background-color: var(--bg-primary);
   color: var(--text-main);
   height: 100vh;
-  overflow: hidden;
+  overflow: auto;
 }
 
 #root {

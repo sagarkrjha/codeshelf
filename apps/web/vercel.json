@@ -1,0 +1,8 @@
+{
+  "installCommand": "pnpm install",
+  "buildCommand": "pnpm web:build",
+  "outputDirectory": "apps/web/dist",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}

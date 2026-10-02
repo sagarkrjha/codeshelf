@@ -5,7 +5,7 @@ import { codeShelfStorageSyncPlugin } from './viteStorageSyncPlugin.ts';
 
 export default defineConfig(() => {
   return {
-    base: './',
+    base: '/',
 
     plugins: [
       tailwindcss(),

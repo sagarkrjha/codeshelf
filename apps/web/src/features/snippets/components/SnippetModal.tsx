@@ -79,6 +79,9 @@ function updateMarkdownMetadata(
     category?: string;
     subcategory?: string;
     tags?: string[];
+    usage?: string[];
+    technology?: string[];
+    complexity?: { time?: string; space?: string };
   }
 ): string {
   const frontmatterMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/);
@@ -89,6 +92,14 @@ function updateMarkdownMetadata(
     if (updates.tags && updates.tags.length > 0) {
       lines.push(`tags: [${updates.tags.map((t) => JSON.stringify(t)).join(', ')}]`);
     }
+    if (updates.usage && updates.usage.length > 0) {
+      lines.push(`usage: [${updates.usage.map((u) => JSON.stringify(u)).join(', ')}]`);
+    }
+    if (updates.technology && updates.technology.length > 0) {
+      lines.push(`technology: [${updates.technology.map((t) => JSON.stringify(t)).join(', ')}]`);
+    }
+    if (updates.complexity?.time) lines.push(`complexity_time: ${JSON.stringify(updates.complexity.time)}`);
+    if (updates.complexity?.space) lines.push(`complexity_space: ${JSON.stringify(updates.complexity.space)}`);
     lines.push('---', '');
     return `${lines.join('\n')}\n${content}`;
   }
@@ -117,6 +128,22 @@ function updateMarkdownMetadata(
     } else if (key === 'tags' && updates.tags !== undefined) {
       handled.add('tags');
       updatedLines.push(`tags: [${updates.tags.map((t) => JSON.stringify(t)).join(', ')}]`);
+    } else if (key === 'usage' && updates.usage !== undefined) {
+      handled.add('usage');
+      if (updates.usage.length > 0) {
+        updatedLines.push(`usage: [${updates.usage.map((u) => JSON.stringify(u)).join(', ')}]`);
+      }
+    } else if (key === 'technology' && updates.technology !== undefined) {
+      handled.add('technology');
+      if (updates.technology.length > 0) {
+        updatedLines.push(`technology: [${updates.technology.map((t) => JSON.stringify(t)).join(', ')}]`);
+      }
+    } else if (key === 'complexity_time' && updates.complexity?.time !== undefined) {
+      handled.add('complexity_time');
+      updatedLines.push(`complexity_time: ${JSON.stringify(updates.complexity.time)}`);
+    } else if (key === 'complexity_space' && updates.complexity?.space !== undefined) {
+      handled.add('complexity_space');
+      updatedLines.push(`complexity_space: ${JSON.stringify(updates.complexity.space)}`);
     } else {
       updatedLines.push(line);
     }
@@ -130,6 +157,18 @@ function updateMarkdownMetadata(
   }
   if (updates.tags !== undefined && !handled.has('tags') && updates.tags.length > 0) {
     updatedLines.push(`tags: [${updates.tags.map((t) => JSON.stringify(t)).join(', ')}]`);
+  }
+  if (updates.usage !== undefined && !handled.has('usage') && updates.usage.length > 0) {
+    updatedLines.push(`usage: [${updates.usage.map((u) => JSON.stringify(u)).join(', ')}]`);
+  }
+  if (updates.technology !== undefined && !handled.has('technology') && updates.technology.length > 0) {
+    updatedLines.push(`technology: [${updates.technology.map((t) => JSON.stringify(t)).join(', ')}]`);
+  }
+  if (updates.complexity?.time && !handled.has('complexity_time')) {
+    updatedLines.push(`complexity_time: ${JSON.stringify(updates.complexity.time)}`);
+  }
+  if (updates.complexity?.space && !handled.has('complexity_space')) {
+    updatedLines.push(`complexity_space: ${JSON.stringify(updates.complexity.space)}`);
   }
 
   return `---\n${updatedLines.join('\n')}\n---\n${body}`;
