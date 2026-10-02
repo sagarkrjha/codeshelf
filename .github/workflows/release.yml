@@ -38,7 +38,9 @@ jobs:
           - os: ubuntu-latest
             platform: linux
             build_cmd: pnpm run desktop:dist:linux
-            artifact_pattern: apps/desktop/release/*.AppImage
+            artifact_pattern: |
+              apps/desktop/release/*.AppImage
+              apps/desktop/release/*.deb
 
     steps:
       - name: Checkout Code

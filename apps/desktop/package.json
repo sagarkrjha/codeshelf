@@ -3,7 +3,10 @@
   "version": "0.2.2",
   "private": true,
   "description": "CodeShelf — Developer-focused snippet knowledge system desktop application",
-  "author": "CodeShelf Team",
+  "author": {
+    "name": "CodeShelf Team",
+    "email": "support@codeshelf.dev"
+  },
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -57,7 +60,8 @@
         "AppImage",
         "deb"
       ],
-      "category": "Development"
+      "category": "Development",
+      "maintainer": "CodeShelf Team <support@codeshelf.dev>"
     },
     "publish": {
       "provider": "github",
