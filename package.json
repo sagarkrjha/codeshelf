@@ -19,7 +19,7 @@
     "lint": "pnpm -r --if-present run lint",
     "test": "pnpm -r --if-present run test",
     "web:dev": "pnpm --filter codeshelf-web dev",
-    "web:build": "pnpm --filter codeshelf-web build",
+    "web:build": "pnpm --filter @codeshelf/shared build && pnpm --filter codeshelf-web build",
     "web:preview": "pnpm --filter codeshelf-web preview",
     "desktop:dev": "pnpm --filter codeshelf-desktop dev",
     "desktop:build": "pnpm --filter codeshelf-desktop build",
