@@ -1,0 +1,29 @@
+{
+  "name": "codeshelf-monorepo",
+  "version": "0.2.2",
+  "private": true,
+  "packageManager": "pnpm@12.6.0",
+  "description": "CodeShelf — Developer-focused snippet knowledge system across desktop and IDE",
+  "author": "CodeShelf Team",
+  "license": "MIT",
+  "scripts": {
+    "build": "pnpm -r --if-present run build",
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "lint": "pnpm -r --if-present run lint",
+    "test": "pnpm -r --if-present run test",
+    "web:dev": "pnpm --filter codeshelf-web dev",
+    "web:build": "pnpm --filter codeshelf-web build",
+    "web:preview": "pnpm --filter codeshelf-web preview",
+    "desktop:dev": "pnpm --filter codeshelf-desktop dev",
+    "desktop:build": "pnpm --filter codeshelf-desktop build",
+    "desktop:start": "pnpm --filter codeshelf-desktop start",
+    "desktop:dist": "pnpm --filter codeshelf-desktop run desktop:dist",
+    "vscode:build": "pnpm --filter codeshelf run build",
+    "vscode:package": "pnpm --filter codeshelf run package"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "tsx": "^4.23.15",
+    "typescript": "7.0.2"
+  }
+}

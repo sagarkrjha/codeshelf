@@ -1,0 +1,8 @@
+{
+  "npm.enableScriptExplorer": true,
+  "npm.autoDetect": "on",
+  "npm.packageManager": "pnpm",
+  "npm.scriptExplorerAction": "run",
+  "npm.enableRunFromFolder": true
+
+}

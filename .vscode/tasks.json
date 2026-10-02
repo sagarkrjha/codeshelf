@@ -1,0 +1,66 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "npm",
+      "script": "web:dev",
+      "label": "pnpm: web:dev",
+      "detail": "Starts the Vite development server for codeshelf-web",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "type": "npm",
+      "script": "web:build",
+      "label": "pnpm: web:build",
+      "detail": "Builds the web application distribution",
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "type": "npm",
+      "script": "desktop:dev",
+      "label": "pnpm: desktop:dev",
+      "detail": "Builds Electron and connects to web dev server",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "type": "npm",
+      "script": "desktop:start",
+      "label": "pnpm: desktop:start",
+      "detail": "Builds web, copies dist, builds electron, and launches desktop app",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "type": "npm",
+      "script": "build",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "label": "pnpm: build",
+      "detail": "Builds all workspace projects",
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "type": "npm",
+      "script": "typecheck",
+      "group": "build",
+      "label": "pnpm: typecheck",
+      "detail": "Typechecks all workspace projects with tsc",
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "type": "npm",
+      "script": "test",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "label": "pnpm: test",
+      "detail": "Runs all unit tests via tsx",
+      "problemMatcher": []
+    }
+  ]
+}
