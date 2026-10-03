@@ -1,41 +1,10 @@
 import type { Snippet } from './models';
 
-export const DEFAULT_TECHNOLOGIES = [
-  'TypeScript',
-  'JavaScript',
-  'React',
-  'Node',
-  'Python',
-  'C++',
-  'Rust',
-  'Go',
-  'Java',
-  'SQL',
-  'HTML/CSS',
-  'Shell/Bash',
-] as const;
+export const DEFAULT_TECHNOLOGIES: readonly string[] = [];
 
-export const DEFAULT_DOMAINS = [
-  'Algorithms',
-  'Data Structures',
-  'Frontend',
-  'Backend',
-  'Database',
-  'DevOps',
-  'System Design',
-  'Networking',
-  'Security',
-  'Utilities',
-] as const;
+export const DEFAULT_DOMAINS: readonly string[] = [];
 
-export const DEFAULT_USAGES = [
-  'LeetCode',
-  'Competitive Programming',
-  'Interview',
-  'Personal Project',
-  'Production',
-  'Learning/Reference',
-] as const;
+export const DEFAULT_USAGES: readonly string[] = [];
 
 export const COMMON_LANGUAGE_EXTENSIONS: Record<string, string> = {
   ts: 'typescript',

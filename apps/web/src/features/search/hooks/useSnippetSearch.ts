@@ -1,16 +1,19 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import type { Snippet, SnippetFilter } from '@codeshelf/shared';
 import {
-  DEFAULT_USAGES,
   extractAllCategories,
   extractCategorySubcategories,
   extractAllTechnologies,
   filterSnippets,
   rankSnippetsByQuery,
+  normalizeTags,
+  matchesTechnologyOrTag,
 } from '@codeshelf/shared';
 
+import { getLocalConfig, subscribeToConfigChanges } from '../../storage/storage';
+
 export interface FacetSelection {
-  type: 'all' | 'domain' | 'tech' | 'usage' | 'tag' | 'subcategory' | 'markdown' | 'history';
+  type: 'all' | 'folder' | 'domain' | 'tech' | 'usage' | 'tag' | 'subcategory' | 'markdown' | 'history';
   value: string;
   parentCategory?: string;
 }
@@ -25,29 +28,35 @@ export function useSnippetSearch(snippets: Snippet[]) {
   });
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [modalFilter, setModalFilter] = useState<SnippetFilter>({});
+  const [localConfig, setLocalConfig] = useState(() => getLocalConfig());
 
-  // Compute all unique tags across snippets
-  const allTags = useMemo(() => {
-    const tagsSet = new Set<string>();
-    snippets.forEach((s) => s.tags?.forEach((t) => tagsSet.add(t)));
-    return Array.from(tagsSet).sort();
-  }, [snippets]);
-
-  // Compute flexible taxonomy
-  const allCategories = useMemo(() => extractAllCategories(snippets), [snippets]);
-  const categorySubcategories = useMemo(() => extractCategorySubcategories(snippets), [snippets]);
-  const allTechnologies = useMemo(() => {
-    const techs = new Set<string>(extractAllTechnologies(snippets));
-    snippets.forEach((s) => {
-      if (s.language && s.language.trim()) {
-        techs.add(s.language.trim());
-      }
+  useEffect(() => {
+    return subscribeToConfigChanges((updatedConfig) => {
+      setLocalConfig(updatedConfig);
     });
-    return Array.from(techs).sort((a, b) => a.localeCompare(b));
-  }, [snippets]);
+  }, []);
+
+  // Compute all unique tags across snippets and user configuration (canonicalized & deduplicated)
+  const allTags = useMemo(() => {
+    const rawTags: string[] = [...(localConfig.customTags || [])];
+    snippets.forEach((s) => s.tags?.forEach((t) => rawTags.push(t)));
+    return normalizeTags(rawTags);
+  }, [snippets, localConfig.customTags]);
+
+  // Compute user-defined folders / categories
+  const allCategories = useMemo(() => {
+    return extractAllCategories(snippets, localConfig.customCategories || []);
+  }, [snippets, localConfig.customCategories]);
+
+  const categorySubcategories = useMemo(() => extractCategorySubcategories(snippets), [snippets]);
+
+  // Compute user-defined and snippet-derived technologies (canonicalized & deduplicated)
+  const allTechnologies = useMemo(() => {
+    return extractAllTechnologies(snippets, localConfig.customTechnologies || []);
+  }, [snippets, localConfig.customTechnologies]);
 
   const allUsages = useMemo(() => {
-    const usagesSet = new Set<string>(DEFAULT_USAGES);
+    const usagesSet = new Set<string>();
     snippets.forEach((s) => {
       s.usage?.forEach((u) => {
         if (u && u.trim()) usagesSet.add(u.trim());
@@ -130,20 +139,25 @@ export function useSnippetSearch(snippets: Snippet[]) {
       }
 
       // 3. Facet matching
-      if (selectedFacet.type === 'domain') {
-        if (s.category !== selectedFacet.value) return false;
+      if (selectedFacet.type === 'domain' || selectedFacet.type === 'folder') {
+        if (!s.category || s.category.trim().toLowerCase() !== selectedFacet.value.trim().toLowerCase()) return false;
       } else if (selectedFacet.type === 'subcategory') {
-        if (s.subcategory !== selectedFacet.value) return false;
-        if (selectedFacet.parentCategory && s.category !== selectedFacet.parentCategory) return false;
+        if (!s.subcategory || s.subcategory.trim().toLowerCase() !== selectedFacet.value.trim().toLowerCase()) return false;
+        if (selectedFacet.parentCategory && (!s.category || s.category.trim().toLowerCase() !== selectedFacet.parentCategory.trim().toLowerCase())) return false;
       } else if (selectedFacet.type === 'tech') {
         const hasTech =
-          s.technology?.includes(selectedFacet.value) ||
-          s.language.toLowerCase() === selectedFacet.value.toLowerCase();
+          s.technology?.some((t) => matchesTechnologyOrTag(selectedFacet.value, t)) ||
+          matchesTechnologyOrTag(selectedFacet.value, s.language) ||
+          s.tags?.some((t) => matchesTechnologyOrTag(selectedFacet.value, t));
         if (!hasTech) return false;
       } else if (selectedFacet.type === 'usage') {
         if (!s.usage?.some((u) => u.toLowerCase() === selectedFacet.value.toLowerCase())) return false;
       } else if (selectedFacet.type === 'tag') {
-        if (!s.tags.includes(selectedFacet.value)) return false;
+        const hasTag =
+          s.tags?.some((t) => matchesTechnologyOrTag(selectedFacet.value, t)) ||
+          s.technology?.some((t) => matchesTechnologyOrTag(selectedFacet.value, t)) ||
+          matchesTechnologyOrTag(selectedFacet.value, s.language);
+        if (!hasTag) return false;
       } else if (selectedFacet.type === 'markdown') {
         if (!s.markdown && (!s.codeBlocks || s.codeBlocks.length <= 1)) return false;
       } else if (selectedFacet.type === 'history') {

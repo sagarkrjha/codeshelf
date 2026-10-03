@@ -9,7 +9,6 @@ import {
   SnippetModal,
   VersionHistoryModal,
   FilterModal,
-  SnippetListPanel,
   SnippetDetailPanel,
   useSnippetManager,
 } from './features/snippets/index';
@@ -17,8 +16,9 @@ import { Sidebar, useLayoutState } from './features/layout/index';
 import { useSnippetSearch } from './features/search/index';
 import { UpdateBanner, UpdateModal, useAppUpdate } from './features/updates/index';
 import { GeminiApiKeyModal } from './features/ai/index';
-import { getLocalConfig } from './features/storage/storage';
+import { getLocalConfig, saveLocalConfig, subscribeToConfigChanges } from './features/storage/storage';
 import { FolderConnectBanner, useFileSystemStorage } from './features/storage/index';
+import { useEffect, useCallback } from 'react';
 
 export function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -26,6 +26,43 @@ export function App() {
   const [isGeminiKeyModalOpen, setIsGeminiKeyModalOpen] = useState(false);
   const [hasGeminiKey, setHasGeminiKey] = useState<boolean>(() => Boolean(getLocalConfig().geminiApiKey));
   const [isFolderBannerDismissed, setIsFolderBannerDismissed] = useState(false);
+  const [localConfig, setLocalConfig] = useState(() => getLocalConfig());
+
+  useEffect(() => {
+    const unsub = subscribeToConfigChanges((cfg) => {
+      setHasGeminiKey(Boolean(cfg.geminiApiKey));
+      setLocalConfig(cfg);
+    });
+    return unsub;
+  }, []);
+
+  const handleAddFolder = useCallback((folderName: string) => {
+    const current = localConfig.customCategories || [];
+    if (!current.includes(folderName)) {
+      const updated = [...current, folderName];
+      saveLocalConfig({ customCategories: updated });
+    }
+  }, [localConfig]);
+
+  const handleDeleteFolder = useCallback((folderName: string) => {
+    const current = localConfig.customCategories || [];
+    const updated = current.filter((c) => c !== folderName);
+    saveLocalConfig({ customCategories: updated });
+  }, [localConfig]);
+
+  const handleAddTag = useCallback((tagName: string) => {
+    const current = localConfig.customTags || [];
+    if (!current.includes(tagName)) {
+      const updated = [...current, tagName];
+      saveLocalConfig({ customTags: updated });
+    }
+  }, [localConfig]);
+
+  const handleDeleteTag = useCallback((tagName: string) => {
+    const current = localConfig.customTags || [];
+    const updated = current.filter((t) => t !== tagName);
+    saveLocalConfig({ customTags: updated });
+  }, [localConfig]);
 
   // File System Access API — tracks connection to ~/.codeshelf on the user's device
   const {
@@ -80,7 +117,6 @@ export function App() {
     allCategories,
     categorySubcategories,
     allTechnologies,
-    allUsages,
     activeModalFilterCount,
     filteredSnippets,
     clearFacet,
@@ -88,6 +124,8 @@ export function App() {
   } = useSnippetSearch(snippets);
 
   const {
+    activeActivityTab,
+    setActiveActivityTab,
     isSidebarCollapsed,
     setIsSidebarCollapsed,
     isListCollapsed,
@@ -181,26 +219,49 @@ export function App() {
           className="hidden"
         />
 
-        {/* Sidebar Navigation */}
+        {/* Unified VS Code Sidebar */}
         <Sidebar
           isCollapsed={isSidebarCollapsed}
           onCollapse={() => setIsSidebarCollapsed(true)}
-          isListCollapsed={isListCollapsed}
-          onOpenList={() => setIsListCollapsed(false)}
-          toggleList={() => setIsListCollapsed((prev) => !prev)}
+          activeTab={activeActivityTab}
+          onTabChange={(tab) => {
+            setActiveActivityTab(tab);
+            setIsSidebarCollapsed(false);
+          }}
           snippets={snippets}
           selectedFacet={selectedFacet}
           onSelectFacet={(facet) => {
             setSelectedFacet(facet);
-            setIsListCollapsed(false);
           }}
           allCategories={allCategories}
           categorySubcategories={categorySubcategories}
           expandedCategories={expandedCategories}
           onToggleCategory={toggleCategory}
           allTechnologies={allTechnologies}
-          allUsages={allUsages}
           allTags={allTags}
+          customCategories={localConfig.customCategories || []}
+          customTags={localConfig.customTags || []}
+          onAddFolder={handleAddFolder}
+          onDeleteFolder={handleDeleteFolder}
+          onAddTag={handleAddTag}
+          onDeleteTag={handleDeleteTag}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          sortOption={sortOption}
+          onSortChange={setSortOption}
+          semanticSearchEnabled={semanticSearchEnabled}
+          onToggleSemantic={() => setSemanticSearchEnabled(!semanticSearchEnabled)}
+          activeModalFilterCount={activeModalFilterCount}
+          onOpenFilterModal={() => setIsFilterModalOpen(true)}
+          modalFilter={modalFilter}
+          onClearFacet={clearFacet}
+          onClearFilterField={(field) =>
+            setModalFilter((prev) => ({ ...prev, [field]: undefined }))
+          }
+          onClearAllFilters={clearAllFilters}
+          filteredSnippets={filteredSnippets}
+          activeSnippetId={activeSnippet?.id}
+          onSelectSnippet={setSelectedId}
           onNewSnippet={handleOpenCreate}
           onImportMarkdown={() => fileInputRef.current?.click()}
           onExportGitSync={() => exportGitSyncManifest(snippets)}
@@ -217,32 +278,6 @@ export function App() {
           }}
           onOpenGeminiKey={() => setIsGeminiKeyModalOpen(true)}
           hasGeminiKey={hasGeminiKey}
-        />
-
-        {/* Snippet List Panel */}
-        <SnippetListPanel
-          isCollapsed={isListCollapsed}
-          isSidebarCollapsed={isSidebarCollapsed}
-          onExpandSidebar={() => setIsSidebarCollapsed(false)}
-          onCollapseList={() => setIsListCollapsed(true)}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          sortOption={sortOption}
-          onSortChange={setSortOption}
-          semanticSearchEnabled={semanticSearchEnabled}
-          onToggleSemantic={() => setSemanticSearchEnabled(!semanticSearchEnabled)}
-          activeModalFilterCount={activeModalFilterCount}
-          onOpenFilterModal={() => setIsFilterModalOpen(true)}
-          selectedFacet={selectedFacet}
-          modalFilter={modalFilter}
-          onClearFacet={clearFacet}
-          onClearFilterField={(field) =>
-            setModalFilter((prev) => ({ ...prev, [field]: undefined }))
-          }
-          onClearAllFilters={clearAllFilters}
-          filteredSnippets={filteredSnippets}
-          activeSnippetId={activeSnippet?.id}
-          onSelectSnippet={setSelectedId}
         />
 
         {/* Snippet Detail Panel */}
@@ -271,6 +306,11 @@ export function App() {
         isOpen={isModalOpen}
         snippet={editingSnippet}
         snippets={snippets}
+        initialCategory={
+          selectedFacet.type === 'folder' || selectedFacet.type === 'domain'
+            ? selectedFacet.value
+            : undefined
+        }
         onClose={handleCloseModal}
         onSave={handleSaveSnippet}
       />

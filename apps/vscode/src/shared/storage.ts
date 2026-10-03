@@ -6,7 +6,7 @@ import type { Snippet, CodeShelfConfig } from '@codeshelf/shared';
 import {
   SEED_SNIPPETS,
   CODESHELF_DIR_NAME,
-  CODESHELF_SNIPPETS_FILENAME,
+  CODESHELF_PRIMARY_SNIPPET_FILENAME,
   CODESHELF_CONFIG_FILENAME,
   DEFAULT_CODESHELF_CONFIG,
   validateConfig,
@@ -15,7 +15,8 @@ import {
 } from '@codeshelf/shared';
 
 export const CODESHELF_DIR = path.join(os.homedir(), CODESHELF_DIR_NAME);
-export const SNIPPETS_FILE = path.join(CODESHELF_DIR, CODESHELF_SNIPPETS_FILENAME);
+export const PRIMARY_SNIPPETS_FILE = path.join(CODESHELF_DIR, CODESHELF_PRIMARY_SNIPPET_FILENAME);
+export const SNIPPETS_FILE = PRIMARY_SNIPPETS_FILE;
 export const CONFIG_FILE = path.join(CODESHELF_DIR, CODESHELF_CONFIG_FILENAME);
 
 export function ensureDirExists(dirPath: string) {
@@ -32,8 +33,8 @@ export class SnippetsStorage {
 
   public getSnippets = (): Snippet[] => {
     try {
-      if (fs.existsSync(SNIPPETS_FILE)) {
-        const raw = fs.readFileSync(SNIPPETS_FILE, 'utf-8');
+      if (fs.existsSync(PRIMARY_SNIPPETS_FILE)) {
+        const raw = fs.readFileSync(PRIMARY_SNIPPETS_FILE, 'utf-8');
         this.lastKnownFileContent = raw;
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
@@ -41,7 +42,7 @@ export class SnippetsStorage {
         }
       }
     } catch (err) {
-      console.error('CodeShelf: Error reading snippets file:', err);
+      console.error('CodeShelf: Error reading snippets.json:', err);
     }
 
     // Default seed snippets if brand new and file does not exist
@@ -49,7 +50,7 @@ export class SnippetsStorage {
       ensureDirExists(CODESHELF_DIR);
       const data = JSON.stringify(SEED_SNIPPETS, null, 2);
       this.lastKnownFileContent = data;
-      fs.writeFileSync(SNIPPETS_FILE, data, 'utf-8');
+      fs.writeFileSync(PRIMARY_SNIPPETS_FILE, data, 'utf-8');
       return SEED_SNIPPETS;
     } catch (err) {
       console.error('CodeShelf: Error creating seed snippets:', err);
@@ -62,23 +63,16 @@ export class SnippetsStorage {
     try {
       ensureDirExists(CODESHELF_DIR);
       // Conflict-free merge with disk to avoid race conditions across Web, Desktop, and VS Code
-      let finalSnippets = snippets;
-      if (fs.existsSync(SNIPPETS_FILE)) {
-        try {
-          const raw = fs.readFileSync(SNIPPETS_FILE, 'utf-8');
-          const diskSnippets = JSON.parse(raw);
-          if (Array.isArray(diskSnippets)) {
-            const { merged } = mergeSnippets(diskSnippets, snippets);
-            finalSnippets = merged;
-          }
-        } catch {}
-      }
+      const diskSnippets = this.getSnippets();
+      const finalSnippets = diskSnippets.length > 0 ? mergeSnippets(diskSnippets, snippets).merged : snippets;
 
       const data = JSON.stringify(finalSnippets, null, 2);
       this.lastKnownFileContent = data;
-      fs.writeFileSync(SNIPPETS_FILE, data, 'utf-8');
+
+      // Primary source of truth: snippets.json
+      fs.writeFileSync(PRIMARY_SNIPPETS_FILE, data, 'utf-8');
     } catch (err) {
-      console.error('CodeShelf: Error writing snippets file:', err);
+      console.error('CodeShelf: Error writing snippets.json file:', err);
     }
   };
 

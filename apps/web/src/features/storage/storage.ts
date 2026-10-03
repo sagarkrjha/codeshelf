@@ -8,6 +8,8 @@ import type {
 import {
   SEED_SNIPPETS,
   CODESHELF_SYNC_CHANNEL,
+  CODESHELF_STORAGE_KEY,
+  CODESHELF_CONFIG_KEY,
   DEFAULT_CODESHELF_CONFIG,
   normalizeSnippetVersion,
   hasSnippetMarkdownChanged,
@@ -16,6 +18,7 @@ import {
   computeSnippetHash,
   validateConfig,
   mergeConfig,
+  mergeSnippets,
 } from '@codeshelf/shared';
 import {
   isFileSystemAccessSupported,
@@ -26,8 +29,8 @@ import {
 } from './fileSystemStorage';
 
 // ─── In-memory cache ──────────────────────────────────────────────────────────
-// Replaces localStorage as the fast synchronous layer.
-// Populated on first read and kept in sync with the file on every write.
+// Fast synchronous access layer, kept in sync with .codeshelf/config.json
+// and snippets.json.
 
 let _snippetsCache: Snippet[] | null = null;
 let _configCache: CodeShelfConfig | null = null;
@@ -43,16 +46,41 @@ if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
   }
 }
 
+// ─── Safe LocalStorage helpers (STRICT PRIVACY GUARANTEE) ────────────────────
+// NOTE: User's Gemini API key is NEVER stored in localStorage.
+// It is stored exclusively in .codeshelf/config.json (on filesystem) and runtime memory.
+
+function sanitizeAndSaveConfigToLocalStorage(config: CodeShelfConfig): void {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    const safeConfig = { ...config };
+    delete safeConfig.geminiApiKey; // STRICT: never store API key in localStorage
+    localStorage.setItem(CODESHELF_CONFIG_KEY, JSON.stringify(safeConfig));
+  } catch {}
+}
+
+function purgeApiKeyFromLocalStorage(): void {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    const raw = localStorage.getItem(CODESHELF_CONFIG_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.geminiApiKey) {
+        delete parsed.geminiApiKey;
+        localStorage.setItem(CODESHELF_CONFIG_KEY, JSON.stringify(parsed));
+      }
+    }
+  } catch {}
+}
+
+purgeApiKeyFromLocalStorage();
+
 // ─── Snippets ─────────────────────────────────────────────────────────────────
 
 /**
  * Returns the current in-memory snippet cache synchronously.
- *
- * Priority on first call:
- * 1. Electron Desktop  → synchronous IPC read from ~/.codeshelf/snippets.json
- * 2. Web               → returns in-memory cache (or seed data until the async
- *                        FS refresh triggered by `subscribeToSnippetChanges`
- *                        completes and calls back with real file data).
+ * Survives reloads and offline state via localStorage cache,
+ * then background synchronizes with snippets.json.
  */
 export function getLocalSnippets(): Snippet[] {
   // 1. Electron Desktop (synchronous IPC)
@@ -74,17 +102,30 @@ export function getLocalSnippets(): Snippet[] {
     return _snippetsCache;
   }
 
-  // 3. Nothing cached yet — return seed data and wait for async FS refresh
+  // 3. Check localStorage cache to avoid flashing seeds on page refresh
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const raw = localStorage.getItem(CODESHELF_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const normalized = (parsed as Snippet[]).map(normalizeSnippetVersion);
+          _snippetsCache = normalized;
+          return normalized;
+        }
+      }
+    } catch {}
+  }
+
+  // 4. Default seeds as baseline before async storage loads real file data
   const seeds = SEED_SNIPPETS.map(normalizeSnippetVersion);
   _snippetsCache = seeds;
   return seeds;
 }
 
 /**
- * Reads snippets from ~/.codeshelf/snippets.json via the File System Access API
- * and updates the in-memory cache. Notifies `onRefreshed` with the result.
- *
- * Called automatically by `subscribeToSnippetChanges` on startup.
+ * Reads snippets from snippets.json via FS Access API
+ * and safely merges with local cache without losing data.
  */
 export async function refreshSnippetsFromFS(
   onRefreshed?: (snippets: Snippet[]) => void
@@ -96,8 +137,17 @@ export async function refreshSnippetsFromFS(
     const fsSnippets = await readSnippetsFromFS();
     if (!fsSnippets) return null;
 
-    const normalized = fsSnippets.map(normalizeSnippetVersion);
+    const current = _snippetsCache || [];
+    const { merged } = mergeSnippets(current, fsSnippets);
+    const normalized = merged.map(normalizeSnippetVersion);
+
     _snippetsCache = normalized;
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        localStorage.setItem(CODESHELF_STORAGE_KEY, JSON.stringify(normalized));
+      } catch {}
+    }
+
     onRefreshed?.(normalized);
     return normalized;
   } catch (err) {
@@ -109,18 +159,23 @@ export async function refreshSnippetsFromFS(
 /**
  * Persists snippets to the file system and updates the in-memory cache.
  *
- * Write priority:
- * 1. Electron Desktop  → synchronous IPC write to ~/.codeshelf/snippets.json
- * 2. Web (FS API)      → async write to the user-selected directory
- * 3. Web (Vite dev)    → POST /api/storage/snippets so VS Code picks up changes
- *
- * Multi-tab broadcast is sent in all cases so open tabs stay in sync.
+ * Conflict safety:
+ * 1. Electron Desktop  → IPC merges with ~/.codeshelf/snippets.json
+ * 2. Web (FS API)      → writeSnippetsToFS merges with disk before writing
+ * 3. Web (API server)  → POST /api/storage/snippets merges with disk before writing
  */
 export function saveLocalSnippets(snippets: Snippet[]): void {
   const normalized = snippets.map(normalizeSnippetVersion);
 
-  // Always keep in-memory cache current
+  // Update in-memory cache
   _snippetsCache = normalized;
+
+  // Persist to localStorage cache for offline/instant refresh
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      localStorage.setItem(CODESHELF_STORAGE_KEY, JSON.stringify(normalized));
+    } catch {}
+  }
 
   // Multi-tab broadcast
   if (syncChannel) {
@@ -141,48 +196,68 @@ export function saveLocalSnippets(snippets: Snippet[]): void {
     }
   }
 
-  // 2. File System Access API → ~/.codeshelf/snippets.json (async, best-effort)
+  // 2. File System Access API → snippets.json (async, conflict-free merge)
   if (isFileSystemAccessSupported()) {
     writeSnippetsToFS(normalized).catch((err) => {
       console.error('[CodeShelf Storage] Failed to write snippets.json via FS API:', err);
     });
   }
 
-  // 3. Vite dev server endpoint — keeps VS Code extension in sync during development
+  // 3. Server storage endpoint — keeps ~/.codeshelf/snippets.json in sync bidirectionally
   if (typeof window !== 'undefined' && typeof fetch !== 'undefined') {
     fetch('/api/storage/snippets', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(normalized),
-    }).catch(() => {
-      // Expected to fail in production / offline — silently ignored
-    });
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.snippets && Array.isArray(data.snippets)) {
+          const serverMerged = data.snippets.map(normalizeSnippetVersion);
+          _snippetsCache = serverMerged;
+        }
+      })
+      .catch(() => {
+        // Static / offline environment — handled gracefully
+      });
   }
 }
 
 /**
- * Subscribes to snippet updates from all environments and triggers an initial
- * async load from the file system on startup.
+ * Subscribes to snippet updates from all environments and triggers initial
+ * bidirectional sync from snippets.json on startup.
  */
 export function subscribeToSnippetChanges(callback: (snippets: Snippet[]) => void): () => void {
   const disposers: Array<() => void> = [];
 
+  // Helper to safely update in-memory cache and notify subscriber
+  const updateAndNotify = (incoming: Snippet[]) => {
+    const current = _snippetsCache || [];
+    const { merged } = mergeSnippets(current, incoming);
+    const normalized = merged.map(normalizeSnippetVersion);
+    _snippetsCache = normalized;
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        localStorage.setItem(CODESHELF_STORAGE_KEY, JSON.stringify(normalized));
+      } catch {}
+    }
+    callback(normalized);
+  };
+
   // 1. Electron IPC file watcher
   if (typeof window !== 'undefined' && window.codeshelfApi?.onSnippetsChanged) {
     const unsub = window.codeshelfApi.onSnippetsChanged((updated) => {
-      _snippetsCache = updated.map(normalizeSnippetVersion);
-      callback(_snippetsCache);
+      updateAndNotify(updated);
     });
     disposers.push(unsub);
   }
 
-  // 2. Vite Dev Server HMR (VS Code → Web browser bridge)
+  // 2. Vite Dev Server HMR (Disk change → Web browser bridge)
   if (typeof import.meta !== 'undefined' && (import.meta as any).hot) {
     const hot = (import.meta as any).hot;
     const hmrHandler = (data: Snippet[]) => {
       if (Array.isArray(data)) {
-        _snippetsCache = data.map(normalizeSnippetVersion);
-        callback(_snippetsCache);
+        updateAndNotify(data);
       }
     };
     hot.on('codeshelf:snippets-changed', hmrHandler);
@@ -193,9 +268,7 @@ export function subscribeToSnippetChanges(callback: (snippets: Snippet[]) => voi
   if (syncChannel) {
     const messageHandler = (event: MessageEvent) => {
       if (event.data?.type === 'sync' && Array.isArray(event.data.snippets)) {
-        const normalized = (event.data.snippets as Snippet[]).map(normalizeSnippetVersion);
-        _snippetsCache = normalized;
-        callback(normalized);
+        updateAndNotify(event.data.snippets as Snippet[]);
       }
     };
     syncChannel.addEventListener('message', messageHandler);
@@ -203,30 +276,51 @@ export function subscribeToSnippetChanges(callback: (snippets: Snippet[]) => voi
   }
 
   if (typeof window !== 'undefined') {
-    // 4. File System Access API — initial async load from ~/.codeshelf/snippets.json
-    if (!window.codeshelfApi && isFileSystemAccessSupported()) {
-      refreshSnippetsFromFS((fsSnippets) => {
-        callback(fsSnippets);
-      }).catch(() => {
-        // No directory connected yet — user will be prompted by FolderConnectBanner
-      });
-    }
-
-    // 5. Vite dev server fetch — fallback for browsers without FS Access API
-    if (!window.codeshelfApi && !isFileSystemAccessSupported() && typeof fetch !== 'undefined') {
+    // 4. Server API fetch on startup (loads ~/.codeshelf/snippets.json immediately)
+    if (typeof fetch !== 'undefined' && !window.codeshelfApi) {
       fetch('/api/storage/snippets')
         .then((res) => (res.ok ? res.json() : null))
         .then((serverSnippets) => {
           if (Array.isArray(serverSnippets) && serverSnippets.length > 0) {
-            const normalized = serverSnippets.map(normalizeSnippetVersion);
-            _snippetsCache = normalized;
-            callback(normalized);
+            updateAndNotify(serverSnippets);
           }
         })
-        .catch(() => {
-          // Static / offline environment — in-memory cache is already set
-        });
+        .catch(() => {});
     }
+
+    // 5. File System Access API initial async load
+    if (!window.codeshelfApi && isFileSystemAccessSupported()) {
+      refreshSnippetsFromFS((fsSnippets) => {
+        updateAndNotify(fsSnippets);
+      }).catch(() => {});
+    }
+
+    // 6. Tab focus auto-sync (picks up external edits made in VS Code or Terminal)
+    const onFocus = () => {
+      if (typeof fetch !== 'undefined' && !window.codeshelfApi) {
+        fetch('/api/storage/snippets')
+          .then((res) => (res.ok ? res.json() : null))
+          .then((serverSnippets) => {
+            if (Array.isArray(serverSnippets) && serverSnippets.length > 0) {
+              updateAndNotify(serverSnippets);
+            }
+          })
+          .catch(() => {});
+      }
+      if (!window.codeshelfApi && isFileSystemAccessSupported()) {
+        refreshSnippetsFromFS((fsSnippets) => {
+          updateAndNotify(fsSnippets);
+        }).catch(() => {});
+      }
+    };
+
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') onFocus();
+    });
+    disposers.push(() => {
+      window.removeEventListener('focus', onFocus);
+    });
   }
 
   return () => {
@@ -348,15 +442,11 @@ export function getSnippetById(id: string): Snippet | undefined {
   return getLocalSnippets().find((s) => s.id === id);
 }
 
-// ─── Config ───────────────────────────────────────────────────────────────────
+// ─── Config & Permissions ─────────────────────────────────────────────────────
 
 /**
- * Returns the current in-memory config cache synchronously.
- *
- * Priority on first call:
- * 1. Electron Desktop  → synchronous IPC read from ~/.codeshelf/config.json
- * 2. Web               → in-memory cache (populated by `refreshConfigFromFS`)
- * 3. Fallback          → DEFAULT_CODESHELF_CONFIG
+ * Returns the current configuration synchronously.
+ * .codeshelf/config.json is the single source of truth for app configuration and permissions.
  */
 export function getLocalConfig(): CodeShelfConfig {
   // 1. Electron Desktop (synchronous IPC)
@@ -378,13 +468,24 @@ export function getLocalConfig(): CodeShelfConfig {
     return _configCache;
   }
 
-  // 3. Nothing yet — async refresh will populate cache; return defaults for now
+  // 3. Fallback to localStorage for non-sensitive settings (theme, fontSize, etc.)
+  if (typeof window !== 'undefined' && window.localStorage) {
+    try {
+      const raw = localStorage.getItem(CODESHELF_CONFIG_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const validated = validateConfig(parsed);
+        _configCache = validated;
+        return validated;
+      }
+    } catch {}
+  }
+
   return { ...DEFAULT_CODESHELF_CONFIG };
 }
 
 /**
- * Reads config from ~/.codeshelf/config.json via the File System Access API
- * and updates the in-memory cache. Notifies `onRefreshed` with the result.
+ * Reads config from .codeshelf/config.json via FS API and updates in-memory cache.
  */
 export async function refreshConfigFromFS(
   onRefreshed?: (config: CodeShelfConfig) => void
@@ -397,6 +498,7 @@ export async function refreshConfigFromFS(
     if (!fsConfig) return null;
     const validated = validateConfig(fsConfig);
     _configCache = validated;
+    sanitizeAndSaveConfigToLocalStorage(validated);
     onRefreshed?.(validated);
     return validated;
   } catch (err) {
@@ -406,21 +508,20 @@ export async function refreshConfigFromFS(
 }
 
 /**
- * Persists config to the file system and updates the in-memory cache.
+ * Persists config to .codeshelf/config.json and updates in-memory cache.
+ * .codeshelf/config.json is the single source of truth for configuration & permissions.
  *
- * Write priority:
- * 1. Electron Desktop  → synchronous IPC write to ~/.codeshelf/config.json
- * 2. Web (FS API)      → async write to ~/.codeshelf/config.json
- * 3. Web (Vite dev)    → POST /api/storage/config (dev mode only)
- *
- * Multi-tab broadcast is sent in all cases.
+ * NOTE: User's Gemini API key is NEVER written to localStorage.
  */
 export function saveLocalConfig(incoming: Partial<CodeShelfConfig>): CodeShelfConfig {
   const current = getLocalConfig();
   const merged = mergeConfig(current, incoming);
 
-  // Always keep in-memory cache current
+  // Update in-memory cache
   _configCache = merged;
+
+  // Save non-sensitive settings to localStorage (strips geminiApiKey)
+  sanitizeAndSaveConfigToLocalStorage(merged);
 
   // Multi-tab broadcast
   if (syncChannel) {
@@ -429,7 +530,7 @@ export function saveLocalConfig(incoming: Partial<CodeShelfConfig>): CodeShelfCo
     } catch {}
   }
 
-  // 1. Electron Desktop (synchronous IPC)
+  // 1. Electron Desktop (synchronous IPC write to ~/.codeshelf/config.json)
   if (typeof window !== 'undefined' && window.codeshelfApi) {
     try {
       window.codeshelfApi.saveConfig(merged);
@@ -439,14 +540,14 @@ export function saveLocalConfig(incoming: Partial<CodeShelfConfig>): CodeShelfCo
     }
   }
 
-  // 2. File System Access API → ~/.codeshelf/config.json (async, best-effort)
+  // 2. File System Access API → .codeshelf/config.json (async)
   if (isFileSystemAccessSupported()) {
     writeConfigToFS(merged).catch((err) => {
       console.error('[CodeShelf Storage] Failed to write config.json via FS API:', err);
     });
   }
 
-  // 3. Vite dev server endpoint (dev mode only)
+  // 3. Server storage endpoint → .codeshelf/config.json
   if (typeof window !== 'undefined' && typeof fetch !== 'undefined') {
     fetch('/api/storage/config', {
       method: 'POST',
@@ -456,4 +557,74 @@ export function saveLocalConfig(incoming: Partial<CodeShelfConfig>): CodeShelfCo
   }
 
   return merged;
+}
+
+/**
+ * Subscribes to live config updates across Vite HMR, Electron IPC, and BroadcastChannel.
+ */
+export function subscribeToConfigChanges(callback: (config: CodeShelfConfig) => void): () => void {
+  const disposers: Array<() => void> = [];
+
+  const updateConfig = (newConfig: CodeShelfConfig) => {
+    const validated = validateConfig(newConfig);
+    _configCache = validated;
+    sanitizeAndSaveConfigToLocalStorage(validated);
+    callback(validated);
+  };
+
+  // 1. Electron IPC config watcher
+  if (typeof window !== 'undefined' && window.codeshelfApi?.onConfigChanged) {
+    const unsub = window.codeshelfApi.onConfigChanged((cfg) => {
+      updateConfig(cfg);
+    });
+    disposers.push(unsub);
+  }
+
+  // 2. Vite Dev Server HMR config watcher
+  if (typeof import.meta !== 'undefined' && (import.meta as any).hot) {
+    const hot = (import.meta as any).hot;
+    const hmrHandler = (data: CodeShelfConfig) => {
+      if (data && typeof data === 'object') {
+        updateConfig(data);
+      }
+    };
+    hot.on('codeshelf:config-changed', hmrHandler);
+    disposers.push(() => hot.off('codeshelf:config-changed', hmrHandler));
+  }
+
+  // 3. BroadcastChannel config broadcast
+  if (syncChannel) {
+    const messageHandler = (event: MessageEvent) => {
+      if (event.data?.type === 'sync-config' && event.data.config) {
+        updateConfig(event.data.config);
+      }
+    };
+    syncChannel.addEventListener('message', messageHandler);
+    disposers.push(() => syncChannel?.removeEventListener('message', messageHandler));
+  }
+
+  // 4. Initial server fetch
+  if (typeof window !== 'undefined' && typeof fetch !== 'undefined' && !window.codeshelfApi) {
+    fetch('/api/storage/config')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((serverConfig) => {
+        if (serverConfig) {
+          updateConfig(serverConfig);
+        }
+      })
+      .catch(() => {});
+  }
+
+  // 5. Initial FS API refresh
+  if (typeof window !== 'undefined' && !window.codeshelfApi && isFileSystemAccessSupported()) {
+    refreshConfigFromFS((fsConfig) => {
+      updateConfig(fsConfig);
+    }).catch(() => {});
+  }
+
+  return () => {
+    disposers.forEach((dispose) => {
+      try { dispose(); } catch {}
+    });
+  };
 }

@@ -57,6 +57,33 @@ test('mergeConfig merges partial configuration and dedupes custom tags/technolog
   assert.deepStrictEqual(merged.customTags, ['frontend', 'backend']);
 });
 
+test('config.json permissions are validated and merged as single source of truth', () => {
+  assert.strictEqual(DEFAULT_CODESHELF_CONFIG.permissions?.fileSystemAccess, 'granted');
+  assert.strictEqual(DEFAULT_CODESHELF_CONFIG.permissions?.directoryName, '.codeshelf');
+
+  const custom = validateConfig({
+    permissions: {
+      fileSystemAccess: 'granted',
+      directoryName: '.codeshelf',
+      autoSyncFileSystem: true,
+      lastGrantedAt: '2026-10-03T12:00:00Z',
+    },
+  });
+  assert.strictEqual(custom.permissions?.fileSystemAccess, 'granted');
+  assert.strictEqual(custom.permissions?.directoryName, '.codeshelf');
+  assert.strictEqual(custom.permissions?.lastGrantedAt, '2026-10-03T12:00:00Z');
+
+  const updated = mergeConfig(custom, {
+    permissions: {
+      fileSystemAccess: 'denied',
+      autoSyncFileSystem: false,
+    },
+  });
+  assert.strictEqual(updated.permissions?.fileSystemAccess, 'denied');
+  assert.strictEqual(updated.permissions?.directoryName, '.codeshelf'); // preserved from base
+  assert.strictEqual(updated.permissions?.autoSyncFileSystem, false);
+});
+
 test('maskApiKey obfuscates API key safely for UI presentation', () => {
   assert.strictEqual(maskApiKey(''), '');
 

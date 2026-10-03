@@ -1,19 +1,32 @@
 import type { Snippet, SnippetFilter } from '../../models/models';
-import { DEFAULT_DOMAINS, DEFAULT_TECHNOLOGIES } from '../../models/constants';
+import {
+  canonicalizeTechnology,
+  canonicalizeLanguage,
+  matchesTechnologyOrTag,
+} from './canonical';
 
 /**
- * Extracts all unique categories from snippets merged with default domains.
+ * Extracts all unique categories from snippets merged with user-defined categories.
+ * Preserves user-defined categories and trims whitespace without hardcoded fallbacks.
  */
 export function extractAllCategories(
   snippets: Snippet[],
-  defaultDomains: readonly string[] = DEFAULT_DOMAINS
+  additionalCategories: readonly string[] = []
 ): string[] {
-  const categories = new Set<string>(defaultDomains);
+  const categories = new Set<string>();
+
+  for (const cat of additionalCategories) {
+    if (cat && cat.trim()) {
+      categories.add(cat.trim());
+    }
+  }
+
   for (const snippet of snippets) {
     if (snippet.category && snippet.category.trim()) {
       categories.add(snippet.category.trim());
     }
   }
+
   return Array.from(categories).sort((a, b) => a.localeCompare(b));
 }
 
@@ -42,88 +55,176 @@ export function extractCategorySubcategories(snippets: Snippet[]): Record<string
 }
 
 /**
- * Extracts all unique technologies from snippets merged with default technologies.
+ * Extracts all unique technologies from snippets merged with user-defined technologies.
+ * Automatically canonicalizes names (e.g. '.ts', 'cpp', 'C++', '.cpp' map to canonical technology names)
+ * and eliminates duplicate tags case-insensitively.
  */
 export function extractAllTechnologies(
   snippets: Snippet[],
-  defaultTechnologies: readonly string[] = DEFAULT_TECHNOLOGIES
+  additionalTechnologies: readonly string[] = []
 ): string[] {
-  const techs = new Set<string>(defaultTechnologies);
+  const techSet = new Set<string>();
+
+  for (const t of additionalTechnologies) {
+    if (t && t.trim()) {
+      const canonical = canonicalizeTechnology(t);
+      if (canonical) techSet.add(canonical);
+    }
+  }
+
   for (const snippet of snippets) {
     if (Array.isArray(snippet.technology)) {
       for (const t of snippet.technology) {
-        if (t.trim()) techs.add(t.trim());
+        if (t && t.trim()) {
+          const canonical = canonicalizeTechnology(t);
+          if (canonical) techSet.add(canonical);
+        }
       }
     }
+    // Also include canonical technology corresponding to the snippet's language if available
+    if (snippet.language && snippet.language.trim()) {
+      const canonical = canonicalizeTechnology(snippet.language);
+      if (canonical) techSet.add(canonical);
+    }
   }
-  return Array.from(techs).sort((a, b) => a.localeCompare(b));
+
+  return Array.from(techSet).sort((a, b) => a.localeCompare(b));
 }
 
 /**
- * Extracts all unique languages from snippets.
+ * Extracts all unique normalized languages from snippets.
  */
 export function extractAllLanguages(snippets: Snippet[]): string[] {
   const languages = new Set<string>();
   for (const snippet of snippets) {
     if (snippet.language && snippet.language.trim()) {
-      languages.add(snippet.language.trim().toLowerCase());
+      languages.add(canonicalizeLanguage(snippet.language));
     }
   }
   return Array.from(languages).sort((a, b) => a.localeCompare(b));
 }
 
 /**
- * Multi-faceted snippet filter supporting flexible categories, subcategories,
- * tags, languages, technologies, and complexity.
+ * Multi-faceted snippet filter supporting case-insensitive and canonical matching for
+ * categories/folders, subcategories, tags, languages, technologies, and complexity.
  */
 export function filterSnippets(snippets: Snippet[], filter: SnippetFilter): Snippet[] {
-  const matchesStringOrArray = (
+  const matchesCategoryOrFolder = (
     filterVal: string | string[] | undefined,
-    itemVal: string | undefined | null
+    itemCategory: string | undefined | null
   ): boolean => {
     if (!filterVal) return true;
-    if (!itemVal) return false;
-    if (Array.isArray(filterVal)) {
-      if (filterVal.length === 0) return true;
-      return filterVal.some((f) => f.toLowerCase() === itemVal.toLowerCase());
-    }
-    return itemVal.toLowerCase() === filterVal.toLowerCase();
-  };
-
-  const matchesArrayOrArray = (
-    filterVal: string | string[] | undefined,
-    itemVals: string[] | undefined | null
-  ): boolean => {
-    if (!filterVal) return true;
-    if (!itemVals || itemVals.length === 0) return false;
+    if (!itemCategory) return false;
     const filterArray = Array.isArray(filterVal) ? filterVal : [filterVal];
     if (filterArray.length === 0) return true;
+    const target = itemCategory.trim().toLowerCase();
+    return filterArray.some((f) => f.trim().toLowerCase() === target);
+  };
+
+  const matchesSubcategory = (
+    filterVal: string | string[] | undefined,
+    itemSubcategory: string | undefined | null
+  ): boolean => {
+    if (!filterVal) return true;
+    if (!itemSubcategory) return false;
+    const filterArray = Array.isArray(filterVal) ? filterVal : [filterVal];
+    if (filterArray.length === 0) return true;
+    const target = itemSubcategory.trim().toLowerCase();
+    return filterArray.some((f) => f.trim().toLowerCase() === target);
+  };
+
+  const matchesLanguage = (
+    filterVal: string | string[] | undefined,
+    itemLang: string | undefined | null
+  ): boolean => {
+    if (!filterVal) return true;
+    if (!itemLang) return false;
+    const filterArray = Array.isArray(filterVal) ? filterVal : [filterVal];
+    if (filterArray.length === 0) return true;
+    const itemCanonicalLang = canonicalizeLanguage(itemLang);
+    return filterArray.some((f) => {
+      const filterCanonicalLang = canonicalizeLanguage(f);
+      return (
+        itemCanonicalLang === filterCanonicalLang ||
+        matchesTechnologyOrTag(f, itemLang)
+      );
+    });
+  };
+
+  const matchesTag = (
+    filterVal: string | string[] | undefined,
+    itemTags: string[] | undefined | null
+  ): boolean => {
+    if (!filterVal) return true;
+    if (!itemTags || itemTags.length === 0) return false;
+    const filterArray = Array.isArray(filterVal) ? filterVal : [filterVal];
+    if (filterArray.length === 0) return true;
+
     return filterArray.some((f) =>
-      itemVals.some((item) => item.toLowerCase() === f.toLowerCase())
+      itemTags.some((t) => matchesTechnologyOrTag(f, t))
+    );
+  };
+
+  const matchesTechnology = (
+    filterVal: string | string[] | undefined,
+    snippet: Snippet
+  ): boolean => {
+    if (!filterVal) return true;
+    const filterArray = Array.isArray(filterVal) ? filterVal : [filterVal];
+    if (filterArray.length === 0) return true;
+
+    const techList = snippet.technology || [];
+    return filterArray.some((f) => {
+      // Check in technology list
+      const inTech = techList.some((t) => matchesTechnologyOrTag(f, t));
+      if (inTech) return true;
+
+      // Check against language
+      if (snippet.language && matchesTechnologyOrTag(f, snippet.language)) {
+        return true;
+      }
+
+      // Check against tags
+      if (snippet.tags && snippet.tags.some((t) => matchesTechnologyOrTag(f, t))) {
+        return true;
+      }
+
+      return false;
+    });
+  };
+
+  const matchesUsage = (
+    filterVal: string | string[] | undefined,
+    itemUsage: string[] | undefined | null
+  ): boolean => {
+    if (!filterVal) return true;
+    if (!itemUsage || itemUsage.length === 0) return false;
+    const filterArray = Array.isArray(filterVal) ? filterVal : [filterVal];
+    if (filterArray.length === 0) return true;
+
+    return filterArray.some((f) =>
+      itemUsage.some((u) => u.trim().toLowerCase() === f.trim().toLowerCase())
     );
   };
 
   return snippets.filter((s) => {
-    if (filter.domain && !matchesStringOrArray(filter.domain, s.category)) {
+    if (filter.domain && !matchesCategoryOrFolder(filter.domain, s.category)) {
       return false;
     }
-    if (filter.subcategory && !matchesStringOrArray(filter.subcategory, s.subcategory)) {
+    if (filter.subcategory && !matchesSubcategory(filter.subcategory, s.subcategory)) {
       return false;
     }
-    if (filter.language && !matchesStringOrArray(filter.language, s.language)) {
+    if (filter.language && !matchesLanguage(filter.language, s.language)) {
       return false;
     }
-    if (filter.usage && !matchesArrayOrArray(filter.usage, s.usage)) {
+    if (filter.usage && !matchesUsage(filter.usage, s.usage)) {
       return false;
     }
-    if (filter.tag && !matchesArrayOrArray(filter.tag, s.tags)) {
+    if (filter.tag && !matchesTag(filter.tag, s.tags)) {
       return false;
     }
-    if (filter.technology) {
-      const techList = s.technology || [];
-      const hasTech = matchesArrayOrArray(filter.technology, techList) ||
-        matchesStringOrArray(filter.technology, s.language);
-      if (!hasTech) return false;
+    if (filter.technology && !matchesTechnology(filter.technology, s)) {
+      return false;
     }
     if (filter.complexityTime) {
       if (!s.complexity?.time || !s.complexity.time.toLowerCase().includes(filter.complexityTime.toLowerCase())) {
@@ -140,8 +241,9 @@ export function filterSnippets(snippets: Snippet[], filter: SnippetFilter): Snip
       const inTitle = s.title.toLowerCase().includes(q);
       const inCode = s.code.toLowerCase().includes(q);
       const inDesc = s.description?.toLowerCase().includes(q);
-      const inTags = s.tags.some((t) => t.toLowerCase().includes(q));
-      if (!inTitle && !inCode && !inDesc && !inTags) {
+      const inTags = s.tags.some((t) => matchesTechnologyOrTag(q, t) || t.toLowerCase().includes(q));
+      const inTech = s.technology?.some((t) => matchesTechnologyOrTag(q, t) || t.toLowerCase().includes(q));
+      if (!inTitle && !inCode && !inDesc && !inTags && !inTech) {
         return false;
       }
     }

@@ -9,6 +9,9 @@ import {
   parseMarkdownToSnippet,
   aiAutofillFromCode,
   aiGenerateCommitMessage,
+  normalizeTags,
+  normalizeTechnologies,
+  canonicalizeLanguage,
 } from '@codeshelf/shared';
 import { MarkdownViewer } from './MarkdownViewer';
 import { getLocalConfig } from '../../storage/storage';
@@ -45,11 +48,12 @@ interface SnippetModalProps {
   isOpen: boolean;
   snippet?: Snippet | null;
   snippets?: Snippet[];
+  initialCategory?: string;
   onClose: () => void;
   onSave: (input: CreateSnippetInput & { changeSummary?: string }) => void;
 }
 
-function getInitialMarkdownTemplate(category = 'Algorithms', language = 'typescript'): string {
+function getInitialMarkdownTemplate(category = 'General', language = 'typescript'): string {
   return `---
 category: "${category}"
 tags: ["example"]
@@ -178,6 +182,7 @@ export function SnippetModal({
   isOpen,
   snippet,
   snippets = [],
+  initialCategory,
   onClose,
   onSave,
 }: SnippetModalProps) {
@@ -187,8 +192,10 @@ export function SnippetModal({
   // Full Markdown document content
   const [markdown, setMarkdown] = useState<string>('');
 
+  const defaultFolder = initialCategory || 'General';
+
   // Quick frontmatter sync states
-  const [category, setCategory] = useState<string>('Algorithms');
+  const [category, setCategory] = useState<string>(defaultFolder);
   const [subcategory, setSubcategory] = useState('');
   const [tags, setTags] = useState('');
   const [changeSummary, setChangeSummary] = useState('');
@@ -200,7 +207,6 @@ export function SnippetModal({
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-
   const allCategories = useMemo(() => extractAllCategories(snippets), [snippets]);
   const categorySubcategories = useMemo(() => extractCategorySubcategories(snippets), [snippets]);
 
@@ -209,13 +215,13 @@ export function SnippetModal({
     if (snippet) {
       const fullMd = snippet.markdown || serializeSnippetToMarkdown(snippet);
       setMarkdown(fullMd);
-      setCategory(snippet.category || 'Algorithms');
+      setCategory(snippet.category || defaultFolder);
       setSubcategory(snippet.subcategory || '');
       setTags(snippet.tags.join(', '));
     } else {
-      const defaultMd = getInitialMarkdownTemplate();
+      const defaultMd = getInitialMarkdownTemplate(defaultFolder);
       setMarkdown(defaultMd);
-      setCategory('Algorithms');
+      setCategory(defaultFolder);
       setSubcategory('');
       setTags('');
     }
@@ -223,7 +229,7 @@ export function SnippetModal({
     setNoticeMsg('');
     setChangeSummary('');
     setMarkdownView('split');
-  }, [snippet, isOpen]);
+  }, [snippet, isOpen, defaultFolder]);
 
   // Parsed metadata from current markdown content
   const parsedFromMarkdown = useMemo(() => {
@@ -676,20 +682,25 @@ Write your description, documentation, or intuition here...
       .map((t) => t.trim().replace(/^#/, ''))
       .filter(Boolean);
 
-    const resolvedTags =
+    const resolvedTags = normalizeTags(
       parsed.tags && parsed.tags.length > 0
         ? parsed.tags
-        : (formTags.length > 0 ? formTags : (snippet?.tags || []));
+        : (formTags.length > 0 ? formTags : (snippet?.tags || []))
+    );
+
+    const normalizedLang = canonicalizeLanguage(parsed.language || 'typescript');
+    const rawTech = parsed.technology || snippet?.technology || [normalizedLang];
+    const normalizedTech = normalizeTechnologies(rawTech);
 
     const input: CreateSnippetInput = {
       title: parsed.title.trim(),
-      language: (parsed.language || 'typescript').trim().toLowerCase(),
+      language: normalizedLang,
       code: parsed.code,
       description: parsed.description || undefined,
-      category: parsed.category || category || 'General',
+      category: parsed.category || category || defaultFolder,
       subcategory: parsed.subcategory || subcategory || undefined,
       tags: resolvedTags,
-      technology: parsed.technology || snippet?.technology,
+      technology: normalizedTech,
       usage: parsed.usage || snippet?.usage,
       complexity: parsed.complexity,
       markdown: markdown,

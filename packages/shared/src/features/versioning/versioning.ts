@@ -88,6 +88,12 @@ export function hasSnippetMarkdownChanged(
   return serializeSnippetToMarkdown(baseNormalized) !== serializeSnippetToMarkdown(proposedNormalized);
 }
 
+import {
+  canonicalizeLanguage,
+  normalizeTags,
+  normalizeTechnologies,
+} from '../taxonomy/canonical';
+
 /**
  * Normalizes a snippet's version and revision history to guarantee:
  * 1. If history is empty, version is strictly 1 (the initial creation).
@@ -95,13 +101,26 @@ export function hasSnippetMarkdownChanged(
  * 3. The current snippet version is strictly N + 1 (the total number of markdown versions that have ever existed).
  * 4. Ensures every revision in history has its full `markdown` string populated.
  * 5. Deduplicates any duplicate revision entries.
+ * 6. Normalizes language, technology names (canonical casing), and tags (deduplicated).
  */
 export function normalizeSnippetVersion(snippet: Snippet): Snippet {
   const rawHistory = snippet.history || [];
 
+  // Normalize language, technology list, and tags
+  const normalizedLang = canonicalizeLanguage(snippet.language || 'typescript');
+  const normalizedTags = normalizeTags(snippet.tags || []);
+  const normalizedTech = normalizeTechnologies(snippet.technology || [normalizedLang]);
+
+  const baseSnippet: Snippet = {
+    ...snippet,
+    language: normalizedLang,
+    tags: normalizedTags,
+    technology: normalizedTech,
+  };
+
   if (rawHistory.length === 0) {
     return {
-      ...snippet,
+      ...baseSnippet,
       version: 1,
       history: [],
     };
@@ -132,7 +151,7 @@ export function normalizeSnippetVersion(snippet: Snippet): Snippet {
   const normalizedChronological: SnippetRevision[] = chronological.map((rev, idx) => {
     const version = idx + 1;
     const revWithVersion = { ...rev, version };
-    const markdown = getRevisionMarkdown(revWithVersion, snippet);
+    const markdown = getRevisionMarkdown(revWithVersion, baseSnippet);
     return {
       ...revWithVersion,
       markdown,
@@ -146,7 +165,7 @@ export function normalizeSnippetVersion(snippet: Snippet): Snippet {
   const currentVersion = normalizedNewestFirst.length + 1;
 
   return {
-    ...snippet,
+    ...baseSnippet,
     version: currentVersion,
     history: normalizedNewestFirst,
   };

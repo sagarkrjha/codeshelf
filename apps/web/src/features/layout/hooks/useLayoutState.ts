@@ -1,6 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
 
+export type ActivityTab = 'explorer' | 'search' | 'tags' | 'settings';
+
 export function useLayoutState() {
+  const [activeActivityTab, setActiveActivityTab] = useState<ActivityTab>(() => {
+    try {
+      const stored = localStorage.getItem('codeshelf_active_tab');
+      if (stored === 'explorer' || stored === 'search' || stored === 'tags' || stored === 'settings') {
+        return stored;
+      }
+      return 'explorer';
+    } catch {
+      return 'explorer';
+    }
+  });
+
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
     try {
       return localStorage.getItem('codeshelf_sidebar_collapsed') === 'true';
@@ -18,6 +32,12 @@ export function useLayoutState() {
   });
 
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(() => new Set());
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('codeshelf_active_tab', activeActivityTab);
+    } catch {}
+  }, [activeActivityTab]);
 
   useEffect(() => {
     try {
@@ -44,13 +64,27 @@ export function useLayoutState() {
         return;
       }
 
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+      // Ctrl/Cmd + B: Toggle primary sidebar
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'b') {
         e.preventDefault();
-        if (e.shiftKey) {
-          setIsListCollapsed((prev) => !prev);
-        } else {
-          setIsSidebarCollapsed((prev) => !prev);
-        }
+        setIsSidebarCollapsed((prev) => !prev);
+        return;
+      }
+
+      // Ctrl/Cmd + Shift + E: Switch to Explorer tab
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'e') {
+        e.preventDefault();
+        setActiveActivityTab('explorer');
+        setIsSidebarCollapsed(false);
+        return;
+      }
+
+      // Ctrl/Cmd + Shift + F: Switch to Search tab
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        setActiveActivityTab('search');
+        setIsSidebarCollapsed(false);
+        return;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -70,6 +104,8 @@ export function useLayoutState() {
   }, []);
 
   return {
+    activeActivityTab,
+    setActiveActivityTab,
     isSidebarCollapsed,
     setIsSidebarCollapsed,
     isListCollapsed,
@@ -78,3 +114,4 @@ export function useLayoutState() {
     toggleCategory,
   };
 }
+

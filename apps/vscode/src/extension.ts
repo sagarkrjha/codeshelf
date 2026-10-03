@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as fs from 'node:fs';
-import { SnippetsStorage, CODESHELF_DIR, SNIPPETS_FILE, ensureDirExists } from './shared/storage';
+import { SnippetsStorage, CODESHELF_DIR, ensureDirExists } from './shared/storage';
 import { SnippetsTreeProvider } from './features/explorer';
 import { registerCaptureCommand } from './features/capture';
 import { registerAiCommands } from './features/ai';
@@ -21,11 +21,11 @@ export function activate(context: vscode.ExtensionContext) {
       if (!filename || filename === 'snippets.json') {
         if (debounceTimer) clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
-          if (!fs.existsSync(SNIPPETS_FILE)) return;
           try {
-            const currentData = fs.readFileSync(SNIPPETS_FILE, 'utf-8');
-            if (currentData !== storage.getLastKnownContent()) {
-              storage.setLastKnownContent(currentData);
+            const snippets = storage.getSnippets();
+            const serialized = JSON.stringify(snippets);
+            if (serialized !== storage.getLastKnownContent()) {
+              storage.setLastKnownContent(serialized);
               treeProvider.refresh();
             }
           } catch (err) {

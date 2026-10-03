@@ -6,6 +6,10 @@ import {
   compressString,
   decompressString,
   isGzipCompressed,
+  detectLanguageFromFilename,
+  canonicalizeLanguage,
+  normalizeTags,
+  normalizeTechnologies,
 } from '@codeshelf/shared';
 import { addSnippet } from '../storage/storage';
 
@@ -30,7 +34,7 @@ export function exportAllSnippetsAsJson(snippets: Snippet[]): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `codeshelf-backup-${new Date().toISOString().slice(0, 10)}on`;
+  link.download = `codeshelf-backup-${new Date().toISOString().slice(0, 10)}.json`;
   link.click();
   URL.revokeObjectURL(url);
 }
@@ -42,7 +46,7 @@ export async function exportAllSnippetsAsCompressedJson(snippets: Snippet[]): Pr
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = `codeshelf-backup-${new Date().toISOString().slice(0, 10)}on.gz`;
+  link.download = `codeshelf-backup-${new Date().toISOString().slice(0, 10)}.json.gz`;
   link.click();
   URL.revokeObjectURL(url);
 }
@@ -50,15 +54,25 @@ export async function exportAllSnippetsAsCompressedJson(snippets: Snippet[]): Pr
 export async function importSnippetFromMarkdownFile(file: File): Promise<Snippet> {
   const text = await file.text();
   const parsed = parseMarkdownToSnippet(text);
+
+  // If the file itself has a code extension (e.g. .ts, .cpp), auto-detect
+  const detected = detectLanguageFromFilename(file.name);
+  const detectedLang = detected ? detected.language : parsed.language;
+  const canonicalLang = canonicalizeLanguage(detectedLang || 'typescript');
+
+  const resolvedTags = normalizeTags(parsed.tags);
+  const rawTech = parsed.technology || (detected ? [detected.technology] : [canonicalLang]);
+  const resolvedTech = normalizeTechnologies(rawTech);
+
   return addSnippet({
-    title: parsed.title,
-    language: parsed.language,
+    title: parsed.title || file.name.replace(/\.[^/.]+$/, ''),
+    language: canonicalLang,
     code: parsed.code,
     description: parsed.description,
     category: parsed.category,
     subcategory: parsed.subcategory,
-    tags: parsed.tags,
-    technology: parsed.technology,
+    tags: resolvedTags,
+    technology: resolvedTech,
     usage: parsed.usage,
     complexity: parsed.complexity,
   });

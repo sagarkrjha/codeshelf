@@ -1,6 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { Snippet, CreateSnippetInput } from '@codeshelf/shared';
-import { autofillSnippetDetails } from '@codeshelf/shared';
+import {
+  autofillSnippetDetails,
+  normalizeTags,
+  normalizeTechnologies,
+} from '@codeshelf/shared';
 import {
   getLocalSnippets,
   addSnippet,
@@ -100,11 +104,12 @@ export function useSnippetManager() {
       subcategory: activeSnippet.subcategory,
     });
 
-    const mergedTags = Array.from(new Set([...activeSnippet.tags, ...filled.tags]));
-    const mergedTech =
+    const mergedTags = normalizeTags([...activeSnippet.tags, ...filled.tags]);
+    const rawTech =
       activeSnippet.technology && activeSnippet.technology.length > 0
-        ? activeSnippet.technology
+        ? [...activeSnippet.technology, ...filled.technology]
         : filled.technology;
+    const mergedTech = normalizeTechnologies(rawTech);
 
     updateSnippet(activeSnippet.id, {
       tags: mergedTags,

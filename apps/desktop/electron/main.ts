@@ -11,7 +11,7 @@ import {
   type DownloadResult,
   type CodeShelfConfig,
   CODESHELF_DIR_NAME,
-  CODESHELF_SNIPPETS_FILENAME,
+  CODESHELF_PRIMARY_SNIPPET_FILENAME,
   CODESHELF_CONFIG_FILENAME,
   DEFAULT_CODESHELF_CONFIG,
   validateConfig,
@@ -23,7 +23,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const STORAGE_DIR = path.join(os.homedir(), CODESHELF_DIR_NAME);
-const STORAGE_FILE = path.join(STORAGE_DIR, CODESHELF_SNIPPETS_FILENAME);
+const PRIMARY_STORAGE_FILE = path.join(STORAGE_DIR, CODESHELF_PRIMARY_SNIPPET_FILENAME);
 const CONFIG_FILE = path.join(STORAGE_DIR, CODESHELF_CONFIG_FILENAME);
 
 let lastKnownSnippetsContent = '';
@@ -73,35 +73,32 @@ function writeConfigFile(incomingConfig: Partial<CodeShelfConfig>): boolean {
 
 function readSnippetsFromFile(): Snippet[] | null {
   ensureStorageDir();
-  if (!fs.existsSync(STORAGE_FILE)) {
-    return null;
+
+  if (fs.existsSync(PRIMARY_STORAGE_FILE)) {
+    try {
+      const data = fs.readFileSync(PRIMARY_STORAGE_FILE, 'utf-8');
+      lastKnownSnippetsContent = data;
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) return parsed;
+    } catch (err) {
+      console.error('Failed to read snippets.json:', err);
+    }
   }
-  try {
-    const data = fs.readFileSync(STORAGE_FILE, 'utf-8');
-    lastKnownSnippetsContent = data;
-    return JSON.parse(data) as Snippet[];
-  } catch (err) {
-    console.error('Failed to read snippets file:', err);
-    return null;
-  }
+
+  return null;
 }
 
 function writeSnippetsToFile(snippets: Snippet[]): boolean {
   ensureStorageDir();
   try {
-    let finalSnippets = snippets;
-    if (fs.existsSync(STORAGE_FILE)) {
-      try {
-        const diskData = fs.readFileSync(STORAGE_FILE, 'utf-8');
-        const diskSnippets = JSON.parse(diskData);
-        if (Array.isArray(diskSnippets)) {
-          finalSnippets = mergeSnippets(diskSnippets, snippets).merged;
-        }
-      } catch {}
-    }
+    const diskSnippets = readSnippetsFromFile();
+    const finalSnippets = diskSnippets ? mergeSnippets(diskSnippets, snippets).merged : snippets;
     const data = JSON.stringify(finalSnippets, null, 2);
     lastKnownSnippetsContent = data;
-    fs.writeFileSync(STORAGE_FILE, data, 'utf-8');
+
+    // Persistent source of truth: snippets.json
+    fs.writeFileSync(PRIMARY_STORAGE_FILE, data, 'utf-8');
+
     return true;
   } catch (err) {
     console.error('Failed to write snippets file:', err);
@@ -413,16 +410,15 @@ function createWindow(): void {
   let debounceConfigTimer: ReturnType<typeof setTimeout> | null = null;
   try {
     const watcher = fs.watch(STORAGE_DIR, (_eventType, filename) => {
-      if (!filename || filename === CODESHELF_SNIPPETS_FILENAME) {
+      if (!filename || filename === CODESHELF_PRIMARY_SNIPPET_FILENAME) {
         if (debounceSnippetsTimer) clearTimeout(debounceSnippetsTimer);
         debounceSnippetsTimer = setTimeout(() => {
-          if (!fs.existsSync(STORAGE_FILE)) return;
           try {
-            const currentData = fs.readFileSync(STORAGE_FILE, 'utf-8');
-            if (currentData !== lastKnownSnippetsContent) {
-              lastKnownSnippetsContent = currentData;
-              const snippets = JSON.parse(currentData);
-              if (Array.isArray(snippets) && !win.isDestroyed()) {
+            const snippets = readSnippetsFromFile();
+            if (snippets && Array.isArray(snippets) && !win.isDestroyed()) {
+              const serialized = JSON.stringify(snippets);
+              if (serialized !== lastKnownSnippetsContent) {
+                lastKnownSnippetsContent = serialized;
                 win.webContents.send('snippets-changed', snippets);
               }
             }

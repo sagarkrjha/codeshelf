@@ -1,25 +1,26 @@
 /**
  * File System Access API storage adapter for CodeShelf web app.
  *
- * Persists `snippets.json` and `config.json` directly inside a user-selected
- * directory (ideally `~/.codeshelf`) using the browser's File System Access API.
+ * Persists `snippets.json` (primary source of truth) and `config.json`
+ * (single source of truth for app config & permissions) directly inside
+ * a user-selected directory (ideally `~/.codeshelf`) using the browser's
+ * File System Access API.
  *
- * The chosen directory handle is persisted across sessions via IndexedDB so
- * the user only has to pick the folder once.
- *
- * Browser support: Chrome/Edge 86+, Safari 15.2+ (read-only picker on mobile).
- * Firefox does not support `showDirectoryPicker` as of 2024 (graceful fallback
- * to localStorage).
+ * The directory handle is persisted in IndexedDB and permission state
+ * is recorded in `.codeshelf/config.json`.
  */
 
 import type { Snippet, CodeShelfConfig } from '@codeshelf/shared';
 import {
-  CODESHELF_SNIPPETS_FILENAME,
+  CODESHELF_PRIMARY_SNIPPET_FILENAME,
   CODESHELF_CONFIG_FILENAME,
   CODESHELF_DIR_NAME,
+  mergeSnippets,
+  validateConfig,
+  mergeConfig,
 } from '@codeshelf/shared';
 
-const SNIPPETS_FILENAME = CODESHELF_SNIPPETS_FILENAME;
+const PRIMARY_SNIPPETS_FILENAME = CODESHELF_PRIMARY_SNIPPET_FILENAME;
 const CONFIG_FILENAME = CODESHELF_CONFIG_FILENAME;
 
 // IndexedDB database/store for persisting the directory handle
@@ -112,15 +113,9 @@ export async function getStoredDirHandle(): Promise<FileSystemDirectoryHandle | 
   const handle = await idbGet<FileSystemDirectoryHandle>(IDB_DIR_KEY);
   if (!handle) return null;
 
-  // Verify the handle is still accessible (user may have revoked permission)
   try {
     const permState = await (handle as any).queryPermission({ mode: 'readwrite' });
-    if (permState === 'granted') {
-      _cachedDirHandle = handle;
-      return handle;
-    }
-    // Permission not yet granted but could be re-requested
-    if (permState === 'prompt') {
+    if (permState === 'granted' || permState === 'prompt') {
       _cachedDirHandle = handle;
       return handle;
     }
@@ -136,23 +131,32 @@ export async function getStoredDirHandle(): Promise<FileSystemDirectoryHandle | 
 }
 
 /**
- * Prompts the user to pick the `.codeshelf` directory (or any directory they
- * choose) using the browser's native folder picker.  The handle is persisted
- * to IndexedDB so subsequent page loads don't require re-picking.
- *
- * Returns the chosen handle, or null if the user cancelled.
+ * Prompts the user to pick the `.codeshelf` directory using the browser's native folder picker.
+ * Updates `.codeshelf/config.json` with granted permissions and saves handle to IndexedDB.
  */
 export async function promptDirectoryPicker(): Promise<FileSystemDirectoryHandle | null> {
   if (!isFileSystemAccessSupported()) return null;
 
   try {
-    // Suggest starting in the home directory — browsers may ignore the hint
     const handle = await (window as any).showDirectoryPicker({
       id: 'codeshelf-snippets',
       mode: 'readwrite',
       startIn: 'documents',
     });
     await saveDirHandle(handle);
+
+    // Record persistent permission grant inside .codeshelf/config.json
+    try {
+      await writeConfigToFS({
+        permissions: {
+          fileSystemAccess: 'granted',
+          directoryName: handle.name,
+          autoSyncFileSystem: true,
+          lastGrantedAt: new Date().toISOString(),
+        },
+      });
+    } catch {}
+
     return handle;
   } catch (err: any) {
     if (err?.name === 'AbortError') return null; // user cancelled
@@ -170,7 +174,20 @@ export async function ensurePermission(handle: FileSystemDirectoryHandle): Promi
     const state = await (handle as any).queryPermission({ mode: 'readwrite' });
     if (state === 'granted') return true;
     const requested = await (handle as any).requestPermission({ mode: 'readwrite' });
-    return requested === 'granted';
+    if (requested === 'granted') {
+      try {
+        await writeConfigToFS({
+          permissions: {
+            fileSystemAccess: 'granted',
+            directoryName: handle.name,
+            autoSyncFileSystem: true,
+            lastGrantedAt: new Date().toISOString(),
+          },
+        });
+      } catch {}
+      return true;
+    }
+    return false;
   } catch {
     return true; // optimistic — older browsers
   }
@@ -182,6 +199,14 @@ export async function ensurePermission(handle: FileSystemDirectoryHandle): Promi
 export async function clearStoredDirHandle(): Promise<void> {
   _cachedDirHandle = null;
   await idbDel(IDB_DIR_KEY);
+  try {
+    await writeConfigToFS({
+      permissions: {
+        fileSystemAccess: 'denied',
+        autoSyncFileSystem: false,
+      },
+    });
+  } catch {}
 }
 
 // ─── File read / write helpers ────────────────────────────────────────────────
@@ -214,8 +239,8 @@ async function writeFileToDir(
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * Reads snippets from the connected directory's `snippets.json`.
- * Returns null if no directory is connected or the file doesn't exist yet.
+ * Reads snippets from the connected directory.
+ * Reads directly from `snippets.json`.
  */
 export async function readSnippetsFromFS(): Promise<Snippet[] | null> {
   const dir = await getStoredDirHandle();
@@ -225,19 +250,25 @@ export async function readSnippetsFromFS(): Promise<Snippet[] | null> {
   if (!ok) return null;
 
   try {
-    const raw = await readFileFromDir(dir, SNIPPETS_FILENAME);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as Snippet[]) : null;
+    const rawPrimary = await readFileFromDir(dir, PRIMARY_SNIPPETS_FILENAME);
+    if (rawPrimary) {
+      try {
+        const parsed = JSON.parse(rawPrimary);
+        if (Array.isArray(parsed)) return parsed;
+      } catch {}
+    }
+
+    return null;
   } catch (err) {
-    console.error('[CodeShelf FS] Failed to read snippets.json:', err);
+    console.error('[CodeShelf FS] Failed to read snippets from FS:', err);
     return null;
   }
 }
 
 /**
  * Writes the snippet array to the connected directory's `snippets.json`.
- * Returns true on success, false if no directory is connected or write failed.
+ * Safe conflict handling: reads existing snippets from disk first and merges
+ * using `mergeSnippets` to ensure NO user data is ever overwritten or lost.
  */
 export async function writeSnippetsToFS(snippets: Snippet[]): Promise<boolean> {
   const dir = await getStoredDirHandle();
@@ -247,7 +278,13 @@ export async function writeSnippetsToFS(snippets: Snippet[]): Promise<boolean> {
   if (!ok) return false;
 
   try {
-    await writeFileToDir(dir, SNIPPETS_FILENAME, JSON.stringify(snippets, null, 2));
+    const existing = await readSnippetsFromFS();
+    const finalSnippets = existing ? mergeSnippets(existing, snippets).merged : snippets;
+    const formatted = JSON.stringify(finalSnippets, null, 2);
+
+    // Persistent source of truth: snippets.json
+    await writeFileToDir(dir, PRIMARY_SNIPPETS_FILENAME, formatted);
+
     return true;
   } catch (err) {
     console.error('[CodeShelf FS] Failed to write snippets.json:', err);
@@ -257,7 +294,7 @@ export async function writeSnippetsToFS(snippets: Snippet[]): Promise<boolean> {
 
 /**
  * Reads the config from the connected directory's `config.json`.
- * Returns null if no directory is connected or the file doesn't exist.
+ * Single source of truth for app configuration and permissions.
  */
 export async function readConfigFromFS(): Promise<CodeShelfConfig | null> {
   const dir = await getStoredDirHandle();
@@ -269,7 +306,7 @@ export async function readConfigFromFS(): Promise<CodeShelfConfig | null> {
   try {
     const raw = await readFileFromDir(dir, CONFIG_FILENAME);
     if (!raw) return null;
-    return JSON.parse(raw) as CodeShelfConfig;
+    return validateConfig(JSON.parse(raw));
   } catch (err) {
     console.error('[CodeShelf FS] Failed to read config.json:', err);
     return null;
@@ -278,9 +315,9 @@ export async function readConfigFromFS(): Promise<CodeShelfConfig | null> {
 
 /**
  * Writes the config to the connected directory's `config.json`.
- * Returns true on success, false if no directory is connected or write failed.
+ * Merges with existing configuration on disk so settings and permissions are preserved safely.
  */
-export async function writeConfigToFS(config: CodeShelfConfig): Promise<boolean> {
+export async function writeConfigToFS(config: Partial<CodeShelfConfig>): Promise<boolean> {
   const dir = await getStoredDirHandle();
   if (!dir) return false;
 
@@ -288,7 +325,16 @@ export async function writeConfigToFS(config: CodeShelfConfig): Promise<boolean>
   if (!ok) return false;
 
   try {
-    await writeFileToDir(dir, CONFIG_FILENAME, JSON.stringify(config, null, 2));
+    let current: CodeShelfConfig | null = null;
+    const raw = await readFileFromDir(dir, CONFIG_FILENAME);
+    if (raw) {
+      try {
+        current = validateConfig(JSON.parse(raw));
+      } catch {}
+    }
+
+    const merged = current ? mergeConfig(current, config) : validateConfig(config);
+    await writeFileToDir(dir, CONFIG_FILENAME, JSON.stringify(merged, null, 2));
     return true;
   } catch (err) {
     console.error('[CodeShelf FS] Failed to write config.json:', err);
@@ -297,8 +343,7 @@ export async function writeConfigToFS(config: CodeShelfConfig): Promise<boolean>
 }
 
 /**
- * Returns whether the user has already connected a directory.
- * (Does NOT verify current permission — use `getStoredDirHandle` + `ensurePermission` for that.)
+ * Returns whether the user has already connected a directory in IndexedDB.
  */
 export async function isDirectoryConnected(): Promise<boolean> {
   const handle = await idbGet<FileSystemDirectoryHandle>(IDB_DIR_KEY);

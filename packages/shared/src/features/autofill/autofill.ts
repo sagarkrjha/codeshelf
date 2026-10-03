@@ -1,3 +1,9 @@
+import {
+  canonicalizeLanguage,
+  normalizeTags,
+  normalizeTechnologies,
+} from '../taxonomy/canonical';
+
 export interface AutofillResult {
   title: string;
   language: string;
@@ -332,11 +338,11 @@ export function autofillSnippetDetails(
 
   return {
     title,
-    language,
+    language: canonicalizeLanguage(language),
     category,
     subcategory,
-    tags: Array.from(tagsSet),
-    technology,
+    tags: normalizeTags(Array.from(tagsSet)),
+    technology: normalizeTechnologies(technology),
     usage,
     complexity: {
       time: timeComplexity,

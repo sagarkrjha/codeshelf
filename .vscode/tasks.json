@@ -3,18 +3,74 @@
   "tasks": [
     {
       "type": "npm",
-      "script": "web:dev",
-      "label": "pnpm: web:dev",
-      "detail": "Starts the Vite development server for codeshelf-web",
-      "isBackground": true,
+      "script": "build",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "label": "pnpm: build",
+      "detail": "Builds all workspace projects across packages and apps",
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "type": "npm",
+      "script": "typecheck",
+      "group": "build",
+      "label": "pnpm: typecheck",
+      "detail": "Runs TypeScript type checking across all workspace projects",
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "type": "npm",
+      "script": "lint",
+      "label": "pnpm: lint",
+      "detail": "Runs linter across all workspace packages",
       "problemMatcher": []
     },
     {
       "type": "npm",
+      "script": "test",
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "label": "pnpm: test",
+      "detail": "Runs unit test suite via tsx",
+      "problemMatcher": []
+    },
+    {
+      "type": "npm",
+      "script": "web:dev",
+      "label": "pnpm: web:dev",
+      "detail": "Starts the Vite development server for codeshelf-web",
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "custom",
+        "pattern": {
+          "regexp": "^$"
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*VITE.*",
+          "endsPattern": ".*Local:.*"
+        }
+      }
+    },
+    {
+      "type": "npm",
       "script": "web:build",
+      "group": "build",
       "label": "pnpm: web:build",
-      "detail": "Builds the web application distribution",
+      "detail": "Builds @codeshelf/shared and codeshelf-web production bundle",
       "problemMatcher": ["$tsc"]
+    },
+    {
+      "type": "npm",
+      "script": "web:preview",
+      "label": "pnpm: web:preview",
+      "detail": "Locally previews the codeshelf-web production build",
+      "isBackground": true,
+      "problemMatcher": []
     },
     {
       "type": "npm",
@@ -26,40 +82,47 @@
     },
     {
       "type": "npm",
+      "script": "desktop:build",
+      "group": "build",
+      "label": "pnpm: desktop:build",
+      "detail": "Builds web distribution, copies dist, and bundles electron main & preload scripts",
+      "problemMatcher": ["$tsc"]
+    },
+    {
+      "type": "npm",
       "script": "desktop:start",
       "label": "pnpm: desktop:start",
-      "detail": "Builds web, copies dist, builds electron, and launches desktop app",
+      "detail": "Builds web, copies dist, bundles electron, and launches desktop application",
       "isBackground": true,
       "problemMatcher": []
     },
     {
       "type": "npm",
-      "script": "build",
-      "group": {
-        "kind": "build",
-        "isDefault": true
-      },
-      "label": "pnpm: build",
-      "detail": "Builds all workspace projects",
-      "problemMatcher": ["$tsc"]
+      "script": "desktop:dist",
+      "label": "pnpm: desktop:dist",
+      "detail": "Packages desktop application binaries with electron-builder",
+      "problemMatcher": []
     },
     {
       "type": "npm",
-      "script": "typecheck",
+      "script": "desktop:dist:win",
+      "label": "pnpm: desktop:dist:win",
+      "detail": "Packages Windows desktop installer (NSIS & Portable) with electron-builder",
+      "problemMatcher": []
+    },
+    {
+      "type": "npm",
+      "script": "vscode:build",
       "group": "build",
-      "label": "pnpm: typecheck",
-      "detail": "Typechecks all workspace projects with tsc",
+      "label": "pnpm: vscode:build",
+      "detail": "Builds the CodeShelf VS Code extension",
       "problemMatcher": ["$tsc"]
     },
     {
       "type": "npm",
-      "script": "test",
-      "group": {
-        "kind": "test",
-        "isDefault": true
-      },
-      "label": "pnpm: test",
-      "detail": "Runs all unit tests via tsx",
+      "script": "vscode:package",
+      "label": "pnpm: vscode:package",
+      "detail": "Bundles and packages the VS Code extension into a .vsix archive",
       "problemMatcher": []
     }
   ]

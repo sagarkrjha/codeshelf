@@ -2,7 +2,9 @@ import type { Snippet } from '../../models/models';
 import { normalizeSnippetVersion } from '../versioning/versioning';
 
 export const CODESHELF_DIR_NAME = '.codeshelf';
+export const CODESHELF_PRIMARY_SNIPPET_FILENAME = 'snippets.json';
 export const CODESHELF_SNIPPETS_FILENAME = 'snippets.json';
+export const CODESHELF_SNIPPET_FILENAMES = ['snippets.json'] as const;
 export const CODESHELF_STORAGE_KEY = 'codeshelf_snippets_v1';
 export const CODESHELF_CONFIG_KEY = 'codeshelf_config_v1';
 export const CODESHELF_SYNC_CHANNEL = 'codeshelf_sync_channel';

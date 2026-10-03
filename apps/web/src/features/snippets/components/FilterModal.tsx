@@ -5,6 +5,7 @@ import {
   extractAllTechnologies,
   extractAllLanguages,
   filterSnippets,
+  normalizeTag,
 } from '@codeshelf/shared';
 import { X, Filter, RotateCcw, Check, Tag, Layers, Code, Clock } from 'lucide-react';
 
@@ -76,12 +77,17 @@ export function FilterModal({
     return Array.from(set).sort();
   }, [snippets]);
 
-  // Extract all tags with frequency counts
+  // Extract all tags with frequency counts (canonicalized and deduplicated)
   const allTagsWithCounts = useMemo(() => {
     const map = new Map<string, number>();
     snippets.forEach((s) => {
+      const seenSnippetTags = new Set<string>();
       s.tags?.forEach((t) => {
-        map.set(t, (map.get(t) || 0) + 1);
+        const normalized = normalizeTag(t);
+        if (normalized && !seenSnippetTags.has(normalized)) {
+          seenSnippetTags.add(normalized);
+          map.set(normalized, (map.get(normalized) || 0) + 1);
+        }
       });
     });
     return Array.from(map.entries())

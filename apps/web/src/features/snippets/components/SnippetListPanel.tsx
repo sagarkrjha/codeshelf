@@ -154,8 +154,8 @@ export function SnippetListPanel({
             {selectedFacet.type !== 'all' && (
               <span className="badge bg-blue-900/30 text-blue-300 border border-blue-500 inline-flex items-center gap-1 px-1.5 py-0.5">
                 <span>
-                  {selectedFacet.type === 'domain'
-                    ? 'Category'
+                  {selectedFacet.type === 'folder' || selectedFacet.type === 'domain'
+                    ? 'Folder'
                     : selectedFacet.type === 'markdown' || selectedFacet.type === 'history'
                     ? 'View'
                     : selectedFacet.type}:{' '}

@@ -5,6 +5,14 @@ export interface CodeShelfEditorConfig {
   wordWrap?: boolean;
 }
 
+export interface CodeShelfPermissionsConfig {
+  fileSystemAccess?: 'granted' | 'prompt' | 'denied';
+  directoryName?: string;
+  directoryPath?: string;
+  autoSyncFileSystem?: boolean;
+  lastGrantedAt?: string;
+}
+
 export interface CodeShelfConfig {
   version: number;
   storagePath?: string;
@@ -19,6 +27,7 @@ export interface CodeShelfConfig {
   customTechnologies?: string[];
   customCategories?: string[];
   customTags?: string[];
+  permissions?: CodeShelfPermissionsConfig;
 }
 
 export const CODESHELF_CONFIG_FILENAME = 'config.json';
@@ -35,10 +44,15 @@ export const DEFAULT_CODESHELF_CONFIG: CodeShelfConfig = {
     wordWrap: true,
   },
   defaultLanguage: 'typescript',
-  defaultCategory: 'Algorithms',
+  defaultCategory: 'General',
   customTechnologies: [],
   customCategories: [],
   customTags: [],
+  permissions: {
+    fileSystemAccess: 'granted',
+    directoryName: '.codeshelf',
+    autoSyncFileSystem: true,
+  },
 };
 
 /**
@@ -147,6 +161,32 @@ export function validateConfig(input: unknown): CodeShelfConfig {
     customTechnologies: toStringArray(raw.customTechnologies),
     customCategories: toStringArray(raw.customCategories),
     customTags: toStringArray(raw.customTags),
+    permissions: raw.permissions && typeof raw.permissions === 'object'
+      ? {
+          fileSystemAccess:
+            (raw.permissions as any).fileSystemAccess === 'granted' ||
+            (raw.permissions as any).fileSystemAccess === 'prompt' ||
+            (raw.permissions as any).fileSystemAccess === 'denied'
+              ? (raw.permissions as any).fileSystemAccess
+              : DEFAULT_CODESHELF_CONFIG.permissions?.fileSystemAccess,
+          directoryName:
+            typeof (raw.permissions as any).directoryName === 'string' && (raw.permissions as any).directoryName.trim().length > 0
+              ? (raw.permissions as any).directoryName.trim()
+              : DEFAULT_CODESHELF_CONFIG.permissions?.directoryName,
+          directoryPath:
+            typeof (raw.permissions as any).directoryPath === 'string' && (raw.permissions as any).directoryPath.trim().length > 0
+              ? (raw.permissions as any).directoryPath.trim()
+              : undefined,
+          autoSyncFileSystem:
+            typeof (raw.permissions as any).autoSyncFileSystem === 'boolean'
+              ? (raw.permissions as any).autoSyncFileSystem
+              : true,
+          lastGrantedAt:
+            typeof (raw.permissions as any).lastGrantedAt === 'string' && (raw.permissions as any).lastGrantedAt.trim().length > 0
+              ? (raw.permissions as any).lastGrantedAt.trim()
+              : undefined,
+        }
+      : DEFAULT_CODESHELF_CONFIG.permissions,
   };
 }
 
@@ -178,6 +218,10 @@ export function mergeConfig(base: CodeShelfConfig, incoming: Partial<CodeShelfCo
     customTags: Array.from(
       new Set([...(base.customTags || []), ...(incoming.customTags || [])])
     ),
+    permissions: {
+      ...base.permissions,
+      ...(incoming.permissions || {}),
+    },
   };
 
   return validateConfig(merged);

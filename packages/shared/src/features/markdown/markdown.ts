@@ -1,4 +1,9 @@
 import type { Snippet, SnippetCodeBlock } from '../../models/models';
+import {
+  canonicalizeLanguage,
+  normalizeTags,
+  normalizeTechnologies,
+} from '../taxonomy/canonical';
 
 export interface ExtractedCodeBlock {
   language: string;
@@ -482,18 +487,25 @@ export function parseMarkdownToSnippet(
       }
     : undefined;
 
+  const normalizedLang = canonicalizeLanguage(language);
+  const normalizedTags = normalizeTags(parsedTags);
+  const rawTech = Array.isArray(metadata['technology'])
+    ? (metadata['technology'] as string[])
+    : (technologyValue || [normalizedLang]);
+  const normalizedTech = normalizeTechnologies(rawTech);
+
   return {
     id: fallbackId || `snip-import-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
     title,
-    language,
+    language: normalizedLang,
     code,
     ...(descValue != null ? { description: descValue } : {}),
     markdown: content,
     ...(codeBlocksValue != null ? { codeBlocks: codeBlocksValue } : {}),
     ...(category != null ? { category } : {}),
     ...(subcategory != null ? { subcategory } : {}),
-    tags: parsedTags,
-    ...(technologyValue != null ? { technology: technologyValue } : {}),
+    tags: normalizedTags,
+    technology: normalizedTech,
     ...(usageValue != null ? { usage: usageValue } : {}),
     ...(complexityObj != null ? { complexity: complexityObj } : {}),
     version: typeof metadata['version'] === 'number' ? metadata['version'] : 1,

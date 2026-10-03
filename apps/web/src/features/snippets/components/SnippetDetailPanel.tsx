@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import type { Snippet } from '@codeshelf/shared';
-import { extractAllCodeBlocks } from '@codeshelf/shared';
+import { extractAllCodeBlocks, canonicalizeTechnology } from '@codeshelf/shared';
 import { CodeViewer } from './CodeViewer';
 import { MarkdownViewer } from './MarkdownViewer';
 import { downloadSnippetAsMarkdown } from '../../export-import/index';
@@ -23,9 +23,9 @@ import {
 interface SnippetDetailPanelProps {
   activeSnippet: Snippet | null;
   isSidebarCollapsed: boolean;
-  isListCollapsed: boolean;
+  isListCollapsed?: boolean;
   onExpandSidebar: () => void;
-  onToggleList: () => void;
+  onToggleList?: () => void;
   onOpenHistory: () => void;
   onAutofill?: () => void;
   onEdit: (snippet: Snippet) => void;
@@ -44,7 +44,6 @@ export function SnippetDetailPanel({
   copied,
   activeSnippet,
   isSidebarCollapsed,
-  isListCollapsed,
   onExpandSidebar,
   onOpenHistory,
   onEdit,
@@ -56,7 +55,7 @@ export function SnippetDetailPanel({
   copiedMarkdown,
 }: SnippetDetailPanelProps) {
   const [selectedBlockIndex, setSelectedBlockIndex] = useState(0);
-  const [viewMode, setViewMode] = useState<'code' | 'preview'>('code');
+  const [viewMode, setViewMode] = useState<'code' | 'preview'>('preview');
 
   useEffect(() => {
     setSelectedBlockIndex(0);
@@ -139,11 +138,11 @@ export function SnippetDetailPanel({
       <header className="px-6 py-4 border-b border-border-color flex justify-between items-center flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-3">
-            {isSidebarCollapsed && isListCollapsed && (
+            {isSidebarCollapsed && (
               <button
                 className="btn p-1.5"
                 onClick={onExpandSidebar}
-                title="Show Navigation Sidebar (Ctrl+B)"
+                title="Show Primary Sidebar (Ctrl+B)"
               >
                 <PanelLeftOpen size={22} />
               </button>
@@ -235,12 +234,12 @@ export function SnippetDetailPanel({
       {/* Metadata Bar - visible in both Code and Preview views */}
       <div className="text-sm text-text-muted flex gap-3 items-center mt-2 mb-3 px-6 flex-wrap">
         <span className="badge">
-          {(currentBlock?.language || activeSnippet.language).toUpperCase()}
+          {canonicalizeTechnology(currentBlock?.language || activeSnippet.language) || (currentBlock?.language || activeSnippet.language).toUpperCase()}
         </span>
 
         {activeSnippet.category && (
           <span>
-            Domain: <strong>{activeSnippet.category}</strong>
+            Folder: <strong>{activeSnippet.category}</strong>
             {activeSnippet.subcategory && ` / ${activeSnippet.subcategory}`}
           </span>
         )}
