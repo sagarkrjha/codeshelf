@@ -159,16 +159,29 @@ export function registerAiCommands(
       });
       if (!confirmedTitle) return;
 
-      // Build comprehensive description including What, Why, When, How if available
+      // Build comprehensive description including dynamic explanation headings if available
       let comprehensiveDescription = aiResult.description || initialDesc || '';
       if (aiResult.explanation) {
-        const { what, why, when, how } = aiResult.explanation;
         const explanationParts: string[] = [];
         if (comprehensiveDescription) explanationParts.push(comprehensiveDescription);
-        if (what) explanationParts.push(`### What\n${what}`);
-        if (why) explanationParts.push(`### Why\n${why}`);
-        if (when) explanationParts.push(`### When to Use\n${when}`);
-        if (how) explanationParts.push(`### How It Works\n${how}`);
+        if (Array.isArray(aiResult.explanation.headings) && aiResult.explanation.content) {
+          for (const heading of aiResult.explanation.headings) {
+            const body = aiResult.explanation.content[heading];
+            if (body) {
+              const titleCase = heading
+                .replace(/([A-Z])/g, ' $1')
+                .replace(/^./, (str) => str.toUpperCase())
+                .trim();
+              explanationParts.push(`### ${titleCase}\n${body}`);
+            }
+          }
+        } else {
+          const { what, why, when, how } = aiResult.explanation as any;
+          if (what) explanationParts.push(`### What\n${what}`);
+          if (why) explanationParts.push(`### Why\n${why}`);
+          if (when) explanationParts.push(`### When to Use\n${when}`);
+          if (how) explanationParts.push(`### How It Works\n${how}`);
+        }
         comprehensiveDescription = explanationParts.join('\n\n');
       }
 

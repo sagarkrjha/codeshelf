@@ -225,14 +225,12 @@ function readSnippetsFromDisk(): Snippet[] {
  */
 function writeSnippetsToDisk(incoming: Snippet[]): Snippet[] {
   ensureStorage();
-  const diskSnippets = readSnippetsFromDisk();
-  const merged = mergeSnippetsInternal(diskSnippets, incoming);
-  const formatted = JSON.stringify(merged, null, 2);
+  const formatted = JSON.stringify(incoming, null, 2);
 
-  // Write to snippets.json (single source of truth for snippets)
+  // Write directly to snippets.json (single source of truth for snippets)
   fs.writeFileSync(PRIMARY_SNIPPET_FILE, formatted, 'utf-8');
 
-  return merged;
+  return incoming;
 }
 
 /**

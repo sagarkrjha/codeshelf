@@ -4,6 +4,32 @@ All notable changes to the **CodeShelf** project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-10-03
+
+### Fixed
+- **Electron Dynamic Require of `child_process` During Load**:
+  - Excluded `@google/genai` (and transitively `google-auth-library` CommonJS dependencies) from the Electron bundle via `--external:@google/genai`.
+  - Added ESM module path compatibility helpers (`__filename` and `__dirname`) across window management modules in the desktop app.
+- **Desktop Blank Screen On Startup**:
+  - Set relative base URL (`base: './'`) in Vite configuration to ensure bundled scripts and CSS resolve correctly under the Chromium `file://` protocol.
+  - Enhanced window loading path resolution to reliably discover `dist/index.html` across packaged and unbundled environments.
+- **Snippet Deletion Persistence Across Storage Backends**:
+  - Fixed issue where deleted snippets were re-merged and resurrected from disk by removing redundant union-merging on user delete saves across desktop (`main.ts` / `storageService.ts`), web dev server (`viteStorageSyncPlugin.ts`), and browser File System Access API (`fileSystemStorage.ts`).
+  - Corrected `subscribeToSnippetChanges` to accept authoritative incoming updates without resurrecting deleted snippets.
+- **Editor Caret Jitter and Blinking in Snippet Edit Modal**:
+  - Stabilized `SnippetModal` state synchronization to prevent background re-renders and frontmatter parsing from wiping active editor input or jumping caret position while typing.
+  - Added explicit high-contrast caret styling (`caret-blue-400`).
+
+### Changed
+- **Electron Architecture Refactor**:
+  - Modularized Electron main process into dedicated services (`constants`, `storageService`, `updateService`, `watcherService`, `registerIpcHandlers`, and `windowManager`).
+  - Added direct workstation routing for desktop application to skip unnecessary landing screens.
+- **Workflows & Release Automation**:
+  - Updated `ci.yml` with `workflow_dispatch` trigger.
+  - Updated `release.yml` with version `v0.3.1` defaults and manual trigger support for cross-platform desktop installers (Windows, macOS, Linux) and VS Code extension.
+
+---
+
 ## [0.3.0] - 2026-10-02
 
 ### Added

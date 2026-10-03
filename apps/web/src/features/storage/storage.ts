@@ -59,6 +59,20 @@ function sanitizeAndSaveConfigToLocalStorage(config: CodeShelfConfig): void {
   } catch {}
 }
 
+// Background eagerly hydrate _configCache if in browser environment
+if (typeof window !== 'undefined' && !window.codeshelfApi && typeof fetch !== 'undefined') {
+  fetch('/api/storage/config')
+    .then((res) => (res.ok ? res.json() : null))
+    .then((data) => {
+      if (data && typeof data === 'object') {
+        const validated = validateConfig(data);
+        _configCache = validated;
+        sanitizeAndSaveConfigToLocalStorage(validated);
+      }
+    })
+    .catch(() => {});
+}
+
 function purgeApiKeyFromLocalStorage(): void {
   if (typeof window === 'undefined' || !window.localStorage) return;
   try {
@@ -232,9 +246,7 @@ export function subscribeToSnippetChanges(callback: (snippets: Snippet[]) => voi
 
   // Helper to safely update in-memory cache and notify subscriber
   const updateAndNotify = (incoming: Snippet[]) => {
-    const current = _snippetsCache || [];
-    const { merged } = mergeSnippets(current, incoming);
-    const normalized = merged.map(normalizeSnippetVersion);
+    const normalized = incoming.map(normalizeSnippetVersion);
     _snippetsCache = normalized;
     if (typeof window !== 'undefined' && window.localStorage) {
       try {
@@ -482,6 +494,76 @@ export function getLocalConfig(): CodeShelfConfig {
   }
 
   return { ...DEFAULT_CODESHELF_CONFIG };
+}
+
+/**
+ * Loads and ensures the latest configuration is hydrated into _configCache
+ * by checking Electron API, the server endpoint /api/storage/config, or the File System Access API.
+ * Guarantees that if ~/.codeshelf/config.json contains a geminiApiKey, it is loaded into memory.
+ */
+export async function ensureConfigLoaded(): Promise<CodeShelfConfig> {
+  // 1. Electron Desktop
+  if (typeof window !== 'undefined' && window.codeshelfApi) {
+    try {
+      const config = window.codeshelfApi.getConfig();
+      if (config) {
+        const validated = validateConfig(config);
+        _configCache = validated;
+        return validated;
+      }
+    } catch (err) {
+      console.error('[CodeShelf Storage] Failed to load config via codeshelfApi in ensureConfigLoaded:', err);
+    }
+  }
+
+  // If already in cache with geminiApiKey, return immediately
+  if (_configCache && _configCache.geminiApiKey?.trim()) {
+    return _configCache;
+  }
+
+  // 2. Try fetching from server endpoint (/api/storage/config)
+  if (typeof window !== 'undefined' && typeof fetch !== 'undefined') {
+    try {
+      const res = await fetch('/api/storage/config');
+      if (res.ok) {
+        const serverConfig = await res.json();
+        if (serverConfig && typeof serverConfig === 'object') {
+          const validated = validateConfig(serverConfig);
+          _configCache = validated;
+          sanitizeAndSaveConfigToLocalStorage(validated);
+          return validated;
+        }
+      }
+    } catch {}
+  }
+
+  // 3. Try reading from File System Access API
+  if (isFileSystemAccessSupported()) {
+    try {
+      const fsConfig = await readConfigFromFS();
+      if (fsConfig) {
+        const validated = validateConfig(fsConfig);
+        _configCache = validated;
+        sanitizeAndSaveConfigToLocalStorage(validated);
+        return validated;
+      }
+    } catch {}
+  }
+
+  return getLocalConfig();
+}
+
+/**
+ * Returns the Gemini API key from memory cache or refreshes from storage/server if not yet loaded.
+ * Ensures the user is NEVER prompted if their ~/.codeshelf/config.json contains the key.
+ */
+export async function getOrFetchGeminiApiKey(): Promise<string | undefined> {
+  const current = getLocalConfig();
+  if (current.geminiApiKey?.trim()) {
+    return current.geminiApiKey.trim();
+  }
+  const refreshed = await ensureConfigLoaded();
+  return refreshed.geminiApiKey?.trim();
 }
 
 /**

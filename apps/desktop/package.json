@@ -1,6 +1,6 @@
 {
   "name": "codeshelf-desktop",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "CodeShelf — Developer-focused snippet knowledge system desktop application",
   "author": {
@@ -15,7 +15,7 @@
   "type": "module",
   "main": "dist/main.js",
   "scripts": {
-    "build:electron": "esbuild electron/main.ts --bundle --platform=node --format=esm --outfile=dist/main.js --external:electron && esbuild electron/preload.ts --bundle --platform=node --format=cjs --outfile=dist/preload.cjs --external:electron",
+    "build:electron": "esbuild electron/main.ts --bundle --platform=node --format=esm --outfile=dist/main.js --external:electron --external:@google/genai && esbuild electron/preload.ts --bundle --platform=node --format=cjs --outfile=dist/preload.cjs --external:electron --external:@google/genai",
     "build:web": "pnpm --filter codeshelf-web build",
     "copy:web": "node ./scripts/copyWebDist.js",
     "build": "pnpm run build:web && pnpm run copy:web && pnpm run build:electron",

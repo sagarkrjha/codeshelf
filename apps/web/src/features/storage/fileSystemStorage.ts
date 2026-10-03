@@ -15,7 +15,6 @@ import {
   CODESHELF_PRIMARY_SNIPPET_FILENAME,
   CODESHELF_CONFIG_FILENAME,
   CODESHELF_DIR_NAME,
-  mergeSnippets,
   validateConfig,
   mergeConfig,
 } from '@codeshelf/shared';
@@ -278,9 +277,7 @@ export async function writeSnippetsToFS(snippets: Snippet[]): Promise<boolean> {
   if (!ok) return false;
 
   try {
-    const existing = await readSnippetsFromFS();
-    const finalSnippets = existing ? mergeSnippets(existing, snippets).merged : snippets;
-    const formatted = JSON.stringify(finalSnippets, null, 2);
+    const formatted = JSON.stringify(snippets, null, 2);
 
     // Persistent source of truth: snippets.json
     await writeFileToDir(dir, PRIMARY_SNIPPETS_FILENAME, formatted);

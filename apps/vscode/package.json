@@ -2,7 +2,7 @@
   "name": "codeshelf",
   "displayName": "CodeShelf",
   "description": "CodeShelf IDE Extension — Save, search, and insert snippets seamlessly",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "publisher": "codeshelf",
   "repository": {
     "type": "git",

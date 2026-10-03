@@ -14,7 +14,7 @@ import {
   canonicalizeLanguage,
 } from '@codeshelf/shared';
 import { MarkdownViewer } from './MarkdownViewer';
-import { getLocalConfig } from '../../storage/storage';
+import { getLocalConfig, getOrFetchGeminiApiKey } from '../../storage/storage';
 import { GeminiApiKeyModal } from '../../ai';
 import {
   Wand2,
@@ -206,30 +206,41 @@ export function SnippetModal({
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const prevIsOpenRef = useRef(false);
+  const prevSnippetIdRef = useRef<string | null>(null);
 
   const allCategories = useMemo(() => extractAllCategories(snippets), [snippets]);
   const categorySubcategories = useMemo(() => extractCategorySubcategories(snippets), [snippets]);
 
-  // Synchronize on modal open or snippet change
+  // Synchronize ONLY when modal opens or active snippet target ID changes.
+  // This prevents user typing or background re-renders from blowing away editor state and resetting caret position.
   useEffect(() => {
-    if (snippet) {
-      const fullMd = snippet.markdown || serializeSnippetToMarkdown(snippet);
-      setMarkdown(fullMd);
-      setCategory(snippet.category || defaultFolder);
-      setSubcategory(snippet.subcategory || '');
-      setTags(snippet.tags.join(', '));
-    } else {
-      const defaultMd = getInitialMarkdownTemplate(defaultFolder);
-      setMarkdown(defaultMd);
-      setCategory(defaultFolder);
-      setSubcategory('');
-      setTags('');
+    const isOpening = isOpen && !prevIsOpenRef.current;
+    const isSnippetSwitched = (snippet?.id ?? null) !== prevSnippetIdRef.current;
+
+    if (isOpening || isSnippetSwitched) {
+      if (snippet) {
+        const fullMd = snippet.markdown || serializeSnippetToMarkdown(snippet);
+        setMarkdown(fullMd);
+        setCategory(snippet.category || defaultFolder);
+        setSubcategory(snippet.subcategory || '');
+        setTags(snippet.tags.join(', '));
+      } else {
+        const defaultMd = getInitialMarkdownTemplate(defaultFolder);
+        setMarkdown(defaultMd);
+        setCategory(defaultFolder);
+        setSubcategory('');
+        setTags('');
+      }
+      setErrorMsg('');
+      setNoticeMsg('');
+      setChangeSummary('');
+      setMarkdownView('split');
     }
-    setErrorMsg('');
-    setNoticeMsg('');
-    setChangeSummary('');
-    setMarkdownView('split');
-  }, [snippet, isOpen, defaultFolder]);
+
+    prevIsOpenRef.current = isOpen;
+    prevSnippetIdRef.current = snippet?.id ?? null;
+  }, [snippet?.id, isOpen, defaultFolder]);
 
   // Parsed metadata from current markdown content
   const parsedFromMarkdown = useMemo(() => {
@@ -244,24 +255,6 @@ export function SnippetModal({
   const previewBody = useMemo(() => {
     return markdown.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n/, '');
   }, [markdown]);
-
-  // Synchronize category/subcategory/tags with parsed markdown whenever parsedFromMarkdown changes
-  useEffect(() => {
-    if (parsedFromMarkdown) {
-      if (parsedFromMarkdown.category && parsedFromMarkdown.category !== category) {
-        setCategory(parsedFromMarkdown.category);
-      }
-      if (parsedFromMarkdown.subcategory !== undefined && parsedFromMarkdown.subcategory !== subcategory) {
-        setSubcategory(parsedFromMarkdown.subcategory);
-      }
-      if (parsedFromMarkdown.tags && parsedFromMarkdown.tags.length > 0) {
-        const parsedTagsStr = parsedFromMarkdown.tags.join(', ');
-        if (parsedTagsStr !== tags) {
-          setTags(parsedTagsStr);
-        }
-      }
-    }
-  }, [parsedFromMarkdown]);
 
   // Helper for inserting markdown text around current selection
   const insertFormatting = (before: string, after = '', defaultText = '') => {
@@ -560,8 +553,12 @@ Write your description, documentation, or intuition here...
 
   // Gemini AI Autofill from Code
   const handleAiAutofillMarkdown = async () => {
-    const config = getLocalConfig();
-    const apiKey = config.geminiApiKey?.trim();
+    let config = getLocalConfig();
+    let apiKey = config.geminiApiKey?.trim();
+    if (!apiKey) {
+      apiKey = (await getOrFetchGeminiApiKey())?.trim();
+      config = getLocalConfig();
+    }
     if (!apiKey) {
       setShowApiKeyModal(true);
       return;
@@ -583,16 +580,29 @@ Write your description, documentation, or intuition here...
         model: config.geminiModel,
       });
 
-      // Build comprehensive description including What, Why, When, How if available
+      // Build comprehensive description including dynamic explanation headings if available
       let comprehensiveDescription = aiResult.description || parsed.description || '';
       if (aiResult.explanation) {
-        const { what, why, when, how } = aiResult.explanation;
         const explanationParts: string[] = [];
         if (comprehensiveDescription) explanationParts.push(comprehensiveDescription);
-        if (what) explanationParts.push(`### What\n${what}`);
-        if (why) explanationParts.push(`### Why\n${why}`);
-        if (when) explanationParts.push(`### When to Use\n${when}`);
-        if (how) explanationParts.push(`### How It Works\n${how}`);
+        if (Array.isArray(aiResult.explanation.headings) && aiResult.explanation.content) {
+          for (const heading of aiResult.explanation.headings) {
+            const body = aiResult.explanation.content[heading];
+            if (body) {
+              const titleCase = heading
+                .replace(/([A-Z])/g, ' $1')
+                .replace(/^./, (str) => str.toUpperCase())
+                .trim();
+              explanationParts.push(`### ${titleCase}\n${body}`);
+            }
+          }
+        } else {
+          const { what, why, when, how } = aiResult.explanation as any;
+          if (what) explanationParts.push(`### What\n${what}`);
+          if (why) explanationParts.push(`### Why\n${why}`);
+          if (when) explanationParts.push(`### When to Use\n${when}`);
+          if (how) explanationParts.push(`### How It Works\n${how}`);
+        }
         comprehensiveDescription = explanationParts.join('\n\n');
       }
 
@@ -626,8 +636,12 @@ Write your description, documentation, or intuition here...
 
   // Gemini AI Commit Note Generator
   const handleAiGenerateCommit = async () => {
-    const config = getLocalConfig();
-    const apiKey = config.geminiApiKey?.trim();
+    let config = getLocalConfig();
+    let apiKey = config.geminiApiKey?.trim();
+    if (!apiKey) {
+      apiKey = (await getOrFetchGeminiApiKey())?.trim();
+      config = getLocalConfig();
+    }
     if (!apiKey) {
       setShowApiKeyModal(true);
       return;
@@ -1095,7 +1109,7 @@ Write your description, documentation, or intuition here...
                       onChange={(e) => setMarkdown(e.target.value)}
                       onKeyDown={handleEditorKeyDown}
                       placeholder="# Snippet Title&#10;&#10;Write markdown documentation, notes, and code blocks here...&#10;&#10;```typescript&#10;function solution() {}&#10;```"
-                      className="flex-1 w-full p-4 font-mono text-xs sm:text-sm leading-relaxed text-gray-200 bg-transparent resize-none outline-none overflow-y-auto selection:bg-accent/30"
+                      className="flex-1 w-full p-4 font-mono text-xs sm:text-sm leading-relaxed text-gray-200 bg-transparent resize-none outline-none overflow-y-auto selection:bg-accent/30 caret-blue-400"
                       spellCheck={false}
                     />
                   </div>

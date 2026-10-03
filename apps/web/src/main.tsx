@@ -5,8 +5,9 @@ import { LandingPage } from './LandingPage';
 import './styles.css';
 
 function Root() {
+  const isDesktop = typeof window !== 'undefined' && Boolean(window.codeshelfApi);
   const params = new URLSearchParams(window.location.search);
-  const isApp = params.has('app');
+  const isApp = isDesktop || params.has('app');
 
   const openWebApp = () => {
     const url = new URL(window.location.href);
