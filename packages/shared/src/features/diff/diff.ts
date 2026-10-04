@@ -157,3 +157,36 @@ export function computeLineDiff(oldText: string, newText: string): DiffLine[] {
   const newLines = newText ? newText.split(/\r?\n/) : [];
   return myersDiff(oldLines, newLines);
 }
+
+export interface DiffMetrics {
+  added: number;
+  removed: number;
+  unchanged: number;
+  total: number;
+}
+
+/**
+ * Computes statistical metrics (added, removed, unchanged, total) from diff lines.
+ */
+export function computeDiffMetrics(diffLines: DiffLine[]): DiffMetrics {
+  let added = 0;
+  let removed = 0;
+  let unchanged = 0;
+
+  for (const line of diffLines) {
+    if (line.type === 'added') {
+      added++;
+    } else if (line.type === 'removed') {
+      removed++;
+    } else {
+      unchanged++;
+    }
+  }
+
+  return {
+    added,
+    removed,
+    unchanged,
+    total: diffLines.length,
+  };
+}

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { computeLineDiff, myersDiff } from './diff';
+import { computeLineDiff, myersDiff, computeDiffMetrics } from './diff';
 
 test('computeLineDiff detects unchanged lines', () => {
   const text = 'line 1\nline 2';
@@ -57,4 +57,22 @@ test('myersDiff computes minimal shortest edit script (SES)', () => {
   const removedCount = diff.filter((d) => d.type === 'removed').length;
   // Myers minimal edit distance D = addedCount + removedCount
   assert.ok(addedCount > 0 && removedCount > 0);
+});
+
+test('computeDiffMetrics accurately calculates added, removed, unchanged and total lines', () => {
+  // Empty diff lines
+  const emptyMetrics = computeDiffMetrics([]);
+  assert.deepEqual(emptyMetrics, { added: 0, removed: 0, unchanged: 0, total: 0 });
+
+  // Diff lines from computeLineDiff
+  const oldText = 'line1\nline2\nline3';
+  const newText = 'line1\nline2_modified\nline3\nline4';
+  const diffLines = computeLineDiff(oldText, newText);
+  const metrics = computeDiffMetrics(diffLines);
+
+  assert.equal(metrics.total, diffLines.length);
+  assert.equal(metrics.added + metrics.removed + metrics.unchanged, metrics.total);
+  assert.ok(metrics.added >= 1);
+  assert.ok(metrics.removed >= 1);
+  assert.ok(metrics.unchanged >= 2);
 });

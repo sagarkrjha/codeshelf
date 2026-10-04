@@ -46,3 +46,41 @@ test('getCompressionMetrics calculates savings accurately', () => {
   assert.equal(metrics.percentSaved, 80);
   assert.equal(metrics.ratio, 5);
 });
+
+test('getCompressionMetrics handles edge cases (empty strings, string data, zero/negative savings)', () => {
+  // 1. Empty original string
+  const emptyMetrics = getCompressionMetrics('', new Uint8Array(0));
+  assert.equal(emptyMetrics.originalBytes, 0);
+  assert.equal(emptyMetrics.compressedBytes, 0);
+  assert.equal(emptyMetrics.savedBytes, 0);
+  assert.equal(emptyMetrics.percentSaved, 0);
+  assert.equal(emptyMetrics.ratio, 1);
+
+  // 2. Data that expands when compressed (negative savings clamped to 0)
+  const shortText = 'hi';
+  const largerOutput = new Uint8Array(50);
+  const expandedMetrics = getCompressionMetrics(shortText, largerOutput);
+  assert.equal(expandedMetrics.originalBytes, 2);
+  assert.equal(expandedMetrics.compressedBytes, 50);
+  assert.equal(expandedMetrics.savedBytes, 0);
+  assert.equal(expandedMetrics.percentSaved, 0);
+  assert.equal(expandedMetrics.ratio, 0.04);
+
+  // 3. compressedData provided as string
+  const stringCompressed = 'compressed-base64-content';
+  const strMetrics = getCompressionMetrics('original content that is longer', stringCompressed);
+  assert.equal(strMetrics.originalBytes, 31);
+  assert.equal(strMetrics.compressedBytes, 25);
+  assert.equal(strMetrics.savedBytes, 6);
+  assert.equal(strMetrics.percentSaved, 19);
+  assert.equal(strMetrics.ratio, 1.24);
+
+  // 4. Unicode multi-byte UTF-8 character byte counting
+  const emojiText = '🚀🔥🎉'; // Each emoji is 4 UTF-8 bytes -> 12 bytes total
+  const emojiMetrics = getCompressionMetrics(emojiText, new Uint8Array(6));
+  assert.equal(emojiMetrics.originalBytes, 12);
+  assert.equal(emojiMetrics.compressedBytes, 6);
+  assert.equal(emojiMetrics.savedBytes, 6);
+  assert.equal(emojiMetrics.percentSaved, 50);
+  assert.equal(emojiMetrics.ratio, 2);
+});

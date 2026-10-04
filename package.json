@@ -18,6 +18,7 @@
     "typecheck": "pnpm -r --if-present run typecheck",
     "lint": "pnpm -r --if-present run lint",
     "test": "pnpm -r --if-present run test",
+    "bench": "pnpm --filter @codeshelf/shared bench",
     "web:dev": "pnpm --filter codeshelf-web dev",
     "web:build": "pnpm --filter @codeshelf/shared build && pnpm --filter codeshelf-web build",
     "web:preview": "pnpm --filter codeshelf-web preview",

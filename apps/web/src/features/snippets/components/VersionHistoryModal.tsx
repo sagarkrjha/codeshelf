@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import type { Snippet, SnippetRevision } from '@codeshelf/shared';
 import {
   computeLineDiff,
+  computeDiffMetrics,
   normalizeSnippetVersion,
   getSnippetVersionCount,
   getRevisionMarkdown,
@@ -91,15 +92,7 @@ export function VersionHistoryModal({
 
   // Metrics
   const diffMetrics = useMemo(() => {
-    let added = 0;
-    let removed = 0;
-    let unchanged = 0;
-    for (const line of rawDiffLines) {
-      if (line.type === 'added') added++;
-      else if (line.type === 'removed') removed++;
-      else unchanged++;
-    }
-    return { added, removed, unchanged, total: rawDiffLines.length };
+    return computeDiffMetrics(rawDiffLines);
   }, [rawDiffLines]);
 
   // Filter diff lines according to mode and search query
