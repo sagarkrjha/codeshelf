@@ -196,6 +196,9 @@ export function serializeSnippetToMarkdown(snippet: Snippet): string {
   if (snippet.category) {
     frontmatterLines.push(`category: ${JSON.stringify(snippet.category)}`);
   }
+  if (snippet.folder && snippet.folder !== snippet.category) {
+    frontmatterLines.push(`folder: ${JSON.stringify(snippet.folder)}`);
+  }
   if (snippet.subcategory) {
     frontmatterLines.push(`subcategory: ${JSON.stringify(snippet.subcategory)}`);
   }
@@ -433,14 +436,22 @@ export function parseMarkdownToSnippet(
     }
   }
 
-  // Extract category and subcategory from metadata or fallback to markdown body
+  // Extract category, folder and subcategory from metadata or fallback to markdown body
   let category = (metadata['category'] as string) || (metadata['categories'] as string) || undefined;
+  let folder = (metadata['folder'] as string) || (metadata['folders'] as string) || undefined;
   let subcategory = (metadata['subcategory'] as string) || undefined;
 
   if (!category) {
     const catMatch = body.match(/(?:-\s+\*\*Category\*\*:\s*|Category:\s*)([^\r\n]+)/i);
     if (catMatch && catMatch[1]) {
       category = catMatch[1].trim().replace(/^["']|["']$/g, '');
+    }
+  }
+
+  if (!folder) {
+    const folderMatch = body.match(/(?:-\s+\*\*Folder\*\*:\s*|Folder:\s*)([^\r\n]+)/i);
+    if (folderMatch && folderMatch[1]) {
+      folder = folderMatch[1].trim().replace(/^["']|["']$/g, '');
     }
   }
 
@@ -503,6 +514,7 @@ export function parseMarkdownToSnippet(
     markdown: content,
     ...(codeBlocksValue != null ? { codeBlocks: codeBlocksValue } : {}),
     ...(category != null ? { category } : {}),
+    ...(folder != null ? { folder } : {}),
     ...(subcategory != null ? { subcategory } : {}),
     tags: normalizedTags,
     technology: normalizedTech,

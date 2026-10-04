@@ -54,15 +54,19 @@ export function registerSearchCommands(
         return;
       }
 
-      const items = snippets.map((s) => ({
-        label: s.title,
-        description: `(${s.language}) ${s.category ? `• ${s.category}` : ''}`,
-        detail: s.code.split(/\r?\n/)[0] || '',
-        snippet: s,
-      }));
+      const items = snippets.map((s) => {
+        const folderOrCat = s.folder || s.category;
+        const tagsStr = s.tags && s.tags.length > 0 ? ` • #${s.tags.join(' #')}` : '';
+        return {
+          label: s.title,
+          description: `[${s.language}]${folderOrCat ? ` • ${folderOrCat}` : ''}${tagsStr}`,
+          detail: s.code.split(/\r?\n/)[0] || '',
+          snippet: s,
+        };
+      });
 
       const selected = await vscode.window.showQuickPick(items, {
-        placeHolder: 'Search snippets by title, domain, or language...',
+        placeHolder: 'Search snippets by title, folder, tags, or language...',
         matchOnDescription: true,
         matchOnDetail: true,
       });
@@ -148,7 +152,7 @@ export function registerSearchCommands(
 
       if (confirm === 'Delete') {
         const remaining = storage.getSnippets().filter((s) => s.id !== target.id);
-        await storage.saveSnippets(remaining);
+        await storage.saveSnippets(remaining, { skipMerge: true });
         vscode.window.showInformationMessage(`Deleted snippet "${target.title}".`);
       }
     }

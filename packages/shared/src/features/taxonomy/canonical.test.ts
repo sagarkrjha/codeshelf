@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import {
   canonicalizeTechnology,
   canonicalizeLanguage,
+  normalizeTechnology,
+  normalizeLanguage,
+  normalizeExtension,
   detectLanguageFromFilename,
   normalizeTag,
   normalizeTags,
@@ -89,3 +92,20 @@ test('matchesTechnologyOrTag compares case-insensitively and through canonical e
   assert.ok(matchesTechnologyOrTag('python', '.PY'));
   assert.ok(!matchesTechnologyOrTag('python', 'rust'));
 });
+
+test('normalizeTechnology, normalizeLanguage, and normalizeExtension handle extensions and case variants', () => {
+  assert.equal(normalizeTechnology('.ts'), 'TypeScript');
+  assert.equal(normalizeTechnology('TYPESCRIPT'), 'TypeScript');
+  assert.equal(normalizeTechnology('cpp'), 'C++');
+  assert.equal(normalizeTechnology('C++'), 'C++');
+  assert.equal(normalizeLanguage('.TS'), 'typescript');
+  assert.equal(normalizeLanguage('TypeScript'), 'typescript');
+  assert.equal(normalizeLanguage('C++'), 'cpp');
+  assert.equal(normalizeLanguage('.cpp'), 'cpp');
+  assert.equal(normalizeExtension('.ts'), '.ts');
+  assert.equal(normalizeExtension('.TS'), '.ts');
+  assert.equal(normalizeExtension('tS'), '.ts');
+  assert.equal(normalizeExtension('Ts'), '.ts');
+  assert.equal(normalizeExtension('.CPP'), '.cpp');
+});
+

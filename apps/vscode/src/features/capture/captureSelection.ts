@@ -5,6 +5,9 @@ import {
   autofillSnippetDetails,
   extractAllCategories,
   extractAllTechnologies,
+  canonicalizeLanguage,
+  normalizeTechnologies,
+  normalizeTags,
 } from '@codeshelf/shared';
 import type { SnippetsStorage } from '../../shared/storage';
 import type { SnippetsTreeProvider } from '../explorer/snippetsTree';
@@ -113,15 +116,20 @@ export function registerCaptureCommand(
       : autofill.tags;
 
     // Create & Validate
+    const normalizedLang = canonicalizeLanguage(languageId);
+    const normalizedTech = normalizeTechnologies(technology || [normalizedLang]);
+    const normalizedTagsList = normalizeTags(tags);
+
     const snippetInput: CreateSnippetInput = {
       title: title.trim(),
       code: selectedText,
-      language: languageId,
+      language: normalizedLang,
       description: autofill.description,
-      category,
+      category: category.trim(),
+      folder: category.trim(),
       subcategory: autofill.subcategory,
-      technology,
-      tags,
+      technology: normalizedTech,
+      tags: normalizedTagsList,
       complexity: autofill.complexity,
     };
 
@@ -139,6 +147,7 @@ export function registerCaptureCommand(
       code: snippetInput.code,
       language: snippetInput.language,
       category: snippetInput.category,
+      folder: snippetInput.folder,
       subcategory: snippetInput.subcategory,
       technology: snippetInput.technology,
       tags: snippetInput.tags || [],

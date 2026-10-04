@@ -1,16 +1,16 @@
-# CodeShelf Performance & Metrics Report
+# CodeShelf Benchmarks & Performance Report
 
-This document records the official performance metrics, TypeScript compiler diagnostics, benchmark execution results, and test suite verification for the CodeShelf monorepo.
+This document records the official performance benchmarks, TypeScript compiler diagnostics, micro-benchmark execution results, and test suite verification for the CodeShelf monorepo.
 
 ---
 
 ## 1. Executive Summary
 
-- **Total Unit & Feature Tests**: 69 passing (100% pass rate) across 13 test suites.
+- **Total Unit & Feature Tests**: 70 passing (100% pass rate) across 13 test suites.
 - **Strict TypeScript Diagnostics**: 0 errors across `@codeshelf/shared`, `apps/web`, `apps/desktop`, and `apps/vscode`.
-- **Myers Diff Performance**: ~57,500 operations/sec for full line diffing; **1,290,000+ operations/sec** for diff statistics aggregation.
-- **Canonicalization & Taxonomy**: Over **2,900,000 operations/sec** for technology/language resolution.
-- **Data Compression**: GZIP stream compression roundtrips at **~1,460+ ops/sec**; metadata savings calculation executes at **340,000+ ops/sec**.
+- **Myers Diff Performance**: ~85,000+ operations/sec for full line diffing; **1,800,000+ operations/sec** for diff statistics aggregation.
+- **Canonicalization & Taxonomy**: Over **1,800,000–2,200,000 operations/sec** for technology/language resolution.
+- **Data Compression**: GZIP stream compression roundtrips at **~1,480+ ops/sec**; metadata savings calculation executes at **350,000+ ops/sec**.
 
 ---
 
@@ -37,33 +37,34 @@ Ran under Node v24.19.0 (win32 x64) testing core cryptographic, diffing, taxonom
 ================================================================================================
 🚀 CodeShelf Performance Benchmarks (@codeshelf/shared)
 ================================================================================================
+Node Environment: Node v24.19.0 (win32 x64)
 
 --- 1. Cryptography & Hashing ---
-⚡ [Sync]  computeSha256Sync (sample text)               |   5000 ops |   0.0174 ms/op |     57,596 ops/s
-⚡ [Sync]  computeSnippetHash (deterministic hash)       |   5000 ops |   0.0150 ms/op |     66,884 ops/s
+⚡ [Sync]  computeSha256Sync (sample text)               |   5000 ops |    80.52 ms |   0.0161 ms/op |     62,094 ops/s
+⚡ [Sync]  computeSnippetHash (deterministic hash)       |   5000 ops |    64.78 ms |   0.0130 ms/op |     77,189 ops/s
 
 --- 2. Myers Diff Algorithm & Metrics ---
-⚡ [Sync]  computeLineDiff (Myers SES diff)              |   2000 ops |   0.0174 ms/op |     57,539 ops/s
-⚡ [Sync]  computeDiffMetrics (Diff stats calculation)   |  10000 ops |   0.0008 ms/op |  1,290,256 ops/s
+⚡ [Sync]  computeLineDiff (Myers SES diff)              |   2000 ops |    23.29 ms |   0.0116 ms/op |     85,886 ops/s
+⚡ [Sync]  computeDiffMetrics (Diff stats calculation)   |  10000 ops |     5.44 ms |   0.0005 ms/op |  1,837,357 ops/s
 
 --- 3. Taxonomy, Canonicalization & Normalization ---
-⚡ [Sync]  canonicalizeTechnology                        |  10000 ops |   0.0003 ms/op |  2,972,828 ops/s
-⚡ [Sync]  canonicalizeLanguage                          |  10000 ops |   0.0005 ms/op |  2,148,689 ops/s
-⚡ [Sync]  normalizeTags (dedupe & clean)                |   5000 ops |   0.0054 ms/op |    183,826 ops/s
-⚡ [Sync]  normalizeTechnologies (canonical & dedupe)    |   5000 ops |   0.0033 ms/op |    306,782 ops/s
+⚡ [Sync]  canonicalizeTechnology                        |  10000 ops |     5.55 ms |   0.0006 ms/op |  1,803,199 ops/s
+⚡ [Sync]  canonicalizeLanguage                          |  10000 ops |     4.50 ms |   0.0004 ms/op |  2,222,963 ops/s
+⚡ [Sync]  normalizeTags (dedupe & clean)                |   5000 ops |    24.47 ms |   0.0049 ms/op |    204,301 ops/s
+⚡ [Sync]  normalizeTechnologies (canonical & dedupe)    |   5000 ops |    16.46 ms |   0.0033 ms/op |    303,689 ops/s
 
 --- 4. Search, Similarity & Ranking ---
-⚡ [Sync]  extractTokens & jaccardSimilarity             |   5000 ops |   0.0061 ms/op |    162,735 ops/s
-⚡ [Sync]  rankSnippetsByQuery (over 50 snippets)        |   1000 ops |   1.1044 ms/op |        905 ops/s
+⚡ [Sync]  extractTokens & jaccardSimilarity             |   5000 ops |    17.77 ms |   0.0036 ms/op |    281,315 ops/s
+⚡ [Sync]  rankSnippetsByQuery (over 50 snippets)        |   1000 ops |   907.62 ms |   0.9076 ms/op |      1,102 ops/s
 
 --- 5. Markdown Serialization & Parsing ---
-⚡ [Sync]  serializeSnippetToMarkdown                    |   2000 ops |   0.0050 ms/op |    199,561 ops/s
-⚡ [Sync]  parseMarkdownToSnippet                        |   2000 ops |   0.0423 ms/op |     23,659 ops/s
+⚡ [Sync]  serializeSnippetToMarkdown                    |   2000 ops |     8.51 ms |   0.0043 ms/op |    235,018 ops/s
+⚡ [Sync]  parseMarkdownToSnippet                        |   2000 ops |   150.99 ms |   0.0755 ms/op |     13,246 ops/s
 
 --- 6. Compression & Metrics ---
-⚡ [Sync]  getCompressionMetrics                         |  10000 ops |   0.0029 ms/op |    341,140 ops/s
-⏱️  [Async] compressString & decompressString (GZIP)      |    200 ops |   0.6820 ms/op |      1,466 ops/s
-⏱️  [Async] compressToBase64 & decompressFromBase64       |    200 ops |   0.6179 ms/op |      1,618 ops/s
+⚡ [Sync]  getCompressionMetrics                         |  10000 ops |    27.87 ms |   0.0028 ms/op |    358,818 ops/s
+⏱️  [Async] compressString & decompressString (GZIP)      |    200 ops |   134.89 ms |   0.6745 ms/op |      1,483 ops/s
+⏱️  [Async] compressToBase64 & decompressFromBase64       |    200 ops |   127.01 ms |   0.6350 ms/op |      1,575 ops/s
 
 ================================================================================================
 ✅ Benchmarks completed successfully!
@@ -77,15 +78,15 @@ Ran under Node v24.19.0 (win32 x64) testing core cryptographic, diffing, taxonom
 Standard TAP test execution via `tsx --test --test-reporter=tap`:
 
 ```text
-1..69
-# tests 69
+1..70
+# tests 70
 # suites 0
-# pass 69
+# pass 70
 # fail 0
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 1891.7391
+# duration_ms 1744.5909
 ```
 
 ### Verified Test Areas:

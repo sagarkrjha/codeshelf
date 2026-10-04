@@ -1,5 +1,6 @@
 import { app, ipcMain, shell } from 'electron';
 import fs from 'node:fs';
+import path from 'node:path';
 import type { Snippet, CodeShelfConfig } from '@codeshelf/shared';
 import { IPC_CHANNELS } from '../constants';
 import {
@@ -97,8 +98,13 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.LAUNCH_INSTALLER, async (_e, filePath: string) => {
     if (filePath && typeof filePath === 'string' && fs.existsSync(filePath)) {
-      shell.openPath(filePath);
-      return true;
+      const downloadsDir = path.resolve(app.getPath('downloads'));
+      const resolvedTarget = path.resolve(filePath);
+      // Ensure the executable is strictly inside the user's downloads directory
+      if (resolvedTarget.startsWith(downloadsDir)) {
+        await shell.openPath(resolvedTarget);
+        return true;
+      }
     }
     return false;
   });

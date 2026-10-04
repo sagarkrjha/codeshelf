@@ -14,14 +14,28 @@ function getPreloadPath(): string {
   return fs.existsSync(cjsPath) ? cjsPath : jsPath;
 }
 
+let mainWindow: ReturnType<typeof createMainWindow> | null = null;
+
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+
+  app.whenReady().then(initApp);
+}
+
 function initApp(): void {
   registerIpcHandlers();
 
   const preloadPath = getPreloadPath();
-  createMainWindow({ preloadPath });
+  mainWindow = createMainWindow({ preloadPath });
 }
-
-app.whenReady().then(initApp);
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

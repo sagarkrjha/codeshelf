@@ -196,6 +196,13 @@ export function canonicalizeTechnology(raw: string): string {
 }
 
 /**
+ * Standard alias for canonicalizeTechnology.
+ */
+export function normalizeTechnology(raw: string): string {
+  return canonicalizeTechnology(raw);
+}
+
+/**
  * Normalizes an extension or language name to its canonical lowercase language identifier
  * (e.g. '.TS' -> 'typescript', 'C++' / '.cpp' -> 'cpp', 'py' -> 'python').
  */
@@ -217,6 +224,24 @@ export function canonicalizeLanguage(raw: string): string {
   if (fromWithoutDot) return fromWithoutDot.language;
 
   return lower;
+}
+
+/**
+ * Standard alias for canonicalizeLanguage.
+ */
+export function normalizeLanguage(raw: string): string {
+  return canonicalizeLanguage(raw);
+}
+
+/**
+ * Normalizes a file extension input (e.g. '.ts', '.TS', 'tS', 'Ts', '.CPP')
+ * to standard lowercase dotted extension (e.g. '.ts', '.cpp').
+ */
+export function normalizeExtension(raw: string): string {
+  if (!raw || typeof raw !== 'string') return '';
+  const trimmed = raw.trim().toLowerCase();
+  if (!trimmed) return '';
+  return trimmed.startsWith('.') ? trimmed : `.${trimmed}`;
 }
 
 /**

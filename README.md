@@ -101,34 +101,46 @@ pnpm run vscode:package
 
 | Action | Shortcut / Command | Description |
 | :--- | :--- | :--- |
-| **Save Snippet with Heuristics** | `Ctrl+Alt+S` / `Cmd+Alt+S` | Captures highlighted code and pre-fills title, language, and tags. |
-| **Save Snippet with AI Autofill** | `CodeShelf: Save Selection to CodeShelf with AI` | Uses Gemini AI to auto-generate title, description, and What/Why/When/How sections. |
-| **Quick Search & Preview** | `Ctrl+Alt+F` / `Cmd+Alt+F` | Fuzzy search snippet titles, descriptions, and tags with a live preview modal. |
+| **Save Snippet with Heuristics** | `Ctrl+Alt+S` / `Cmd+Alt+S` | Captures highlighted code and pre-fills title, folder, language, and tags. |
+| **Save Snippet with AI Autofill** | `Ctrl+Alt+A` / `Cmd+Alt+A` | Uses Gemini AI to auto-generate title, description, folder, and What/Why/When/How sections. |
+| **Quick Search & Insert** | `Ctrl+Alt+F` / `Cmd+Alt+F` | Quick search across titles, folders, languages, and tags with action quick pick. |
 | **Insert Snippet at Cursor** | `Ctrl+Alt+I` / `Cmd+Alt+I` | Selects a snippet and inserts its code directly into the active editor. |
-| **Generate Commit Message** | `CodeShelf: Generate Git Commit Message with AI` | Analyzes staged diffs and generates conventional commit messages. |
-| **Set Gemini API Key** | `CodeShelf: Set Gemini API Key` | Stores your Google Gemini API key securely in VS Code SecretStorage. |
-| **Snippets Explorer** | Activity Bar Icon | Explore snippets grouped by categories and subcategories in the sidebar tree. |
+| **Generate Commit Message** | `CodeShelf: Generate AI Commit Message` | Analyzes staged code or selection and generates conventional commit messages. |
+| **Configure Gemini API Key** | `CodeShelf: Configure Gemini API Key` | Stores your Google Gemini API key securely in configuration storage. |
+| **Snippets Explorer** | Activity Bar Icon (`Ctrl+Shift+E`) | Explore snippets grouped by folders and categories in the sidebar tree. |
 
 ---
 
 ### In CodeShelf Desktop
 
-- **Browse & Filter**: Filter snippets by category, subcategory, programming language, technology tag, or complexity.
-- **Search**: Use global instant search with prefix filters (e.g. `lang:typescript`, `tag:react`, `domain:frontend`).
+- **Browse & Filter**: Filter snippets by folder, category, subcategory, programming language, technology tag, or complexity.
+- **Search**: Use global instant search with prefix filters (e.g. `folder:algorithms`, `lang:typescript`, `tag:react`, `domain:frontend`).
 - **Create & Edit**:
+  - Direct editor transition without intermediate modals.
   - Create snippets manually or use the **AI Autofill** button to analyze code and generate title, metadata, and structured What/Why/When/How usage docs.
   - Markdown editor supports live preview, multiple syntax-highlighted code blocks, and custom usage notes.
 - **Version History & Rollback**:
   - Open **History** on any snippet to view past revisions.
-  - Inspect color-coded additions and deletions via the built-in visual diff engine.
+  - Inspect color-coded additions and deletions via the built-in Myers visual diff engine.
   - Roll back to any prior version with one click.
 - **Import & Export**:
-  - Export individual snippets as Markdown (`.md`) or the complete database as JSON.
-  - Import existing Markdown snippet files with automated frontmatter parsing.
+  - Export individual snippets as Markdown (`.md`) or the complete database as JSON (`.json`) and compressed archives (`.json.gz`).
+  - Import existing Markdown snippet files with automated frontmatter parsing and language detection.
 - **AI Settings**:
   - Click the **AI Settings** icon in the sidebar to configure your Gemini API Key and select your preferred model (e.g., `gemini-3.8-flash`).
 
 ---
 
+## Documentation & Guides
+
+Comprehensive specifications, architectural design, benchmarks, and community guides are organized in the [`docs/`](docs/) directory:
+
+- 🏛️ [**Architecture Guide**](docs/ARCHITECTURE.md) — Monorepo design, domain models, IPC security, and storage architecture.
+- ⚡ [**Benchmarks & Performance Report**](docs/BENCHMARKS.md) — Official micro-benchmarks, compiler diagnostics, and TAP metrics.
+- 📜 [**Changelog & Releases**](docs/CHANGELOG.md) — Release notes and audit/hardening history.
+- 🤝 [**Contribution Guidelines**](docs/CONTRIBUTING.md) — Development setup, conventions, PR process, and principles.
+
+---
+
 > **A Quick Note to Our Community:**  
-> We warmly invite you to review our [Changelog](CHANGELOG.md) to explore recent updates and release notes. If you would like to help improve CodeShelf, report an issue, or propose a feature, we kindly encourage you to review our [Contribution Guidelines](CONTRIBUTION_GUIDELINE.md). Your support, feedback, and contributions make this project better for all developers!
+> We warmly invite you to review our [Changelog](docs/CHANGELOG.md) to explore recent updates and release notes. If you would like to help improve CodeShelf, report an issue, or propose a feature, we kindly encourage you to review our [Contribution Guidelines](docs/CONTRIBUTING.md). Your support, feedback, and contributions make this project better for all developers!

@@ -59,18 +59,38 @@ export class SnippetsStorage {
     return [];
   };
 
-  public saveSnippets = async (snippets: Snippet[]): Promise<void> => {
+  public saveSnippets = async (snippets: Snippet[], options?: { skipMerge?: boolean }): Promise<void> => {
     try {
       ensureDirExists(CODESHELF_DIR);
-      // Conflict-free merge with disk to avoid race conditions across Web, Desktop, and VS Code
-      const diskSnippets = this.getSnippets();
-      const finalSnippets = diskSnippets.length > 0 ? mergeSnippets(diskSnippets, snippets).merged : snippets;
+      // Direct write if skipMerge is requested (e.g. for deletions), otherwise merge with disk
+      const finalSnippets = options?.skipMerge
+        ? snippets
+        : (() => {
+            const diskSnippets = this.getSnippets();
+            return diskSnippets.length > 0 ? mergeSnippets(diskSnippets, snippets).merged : snippets;
+          })();
 
       const data = JSON.stringify(finalSnippets, null, 2);
       this.lastKnownFileContent = data;
 
-      // Primary source of truth: snippets.json
-      fs.writeFileSync(PRIMARY_SNIPPETS_FILE, data, 'utf-8');
+      // Atomic write via temporary file
+      const tempPath = path.join(CODESHELF_DIR, `.snippets.${Date.now()}.${Math.random().toString(36).slice(2, 8)}.tmp`);
+      fs.writeFileSync(tempPath, data, 'utf-8');
+      try {
+        fs.renameSync(tempPath, PRIMARY_SNIPPETS_FILE);
+      } catch {
+        if (fs.existsSync(PRIMARY_SNIPPETS_FILE)) {
+          try { fs.unlinkSync(PRIMARY_SNIPPETS_FILE); } catch {}
+        }
+        try {
+          fs.renameSync(tempPath, PRIMARY_SNIPPETS_FILE);
+        } catch {
+          fs.writeFileSync(PRIMARY_SNIPPETS_FILE, data, 'utf-8');
+          if (fs.existsSync(tempPath)) {
+            try { fs.unlinkSync(tempPath); } catch {}
+          }
+        }
+      }
     } catch (err) {
       console.error('CodeShelf: Error writing snippets.json file:', err);
     }

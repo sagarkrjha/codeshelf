@@ -4,6 +4,36 @@ All notable changes to the **CodeShelf** project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2] - 2026-10-04
+
+### Added
+- **First-Class Folder Concept Across Domain Models**:
+  - Added `folder` property across `Snippet`, `CreateSnippetInput`, `UpdateSnippetInput`, and `SnippetFilter`.
+  - Added `folder:` search query syntax to support explicit folder filtering in the search engine alongside `domain:`, `tag:`, and `lang:`.
+  - Synced `folder` in Markdown serialization and YAML frontmatter import/export.
+- **Centralized Taxonomy & Normalization Utilities**:
+  - Exported standard typed utilities `normalizeTechnology(val)`, `normalizeLanguage(val)`, and `normalizeExtension(val)` in `@codeshelf/shared`.
+  - Added unit test suite covering uppercase, lowercase, mixed-case, and extension variations (e.g. `.ts`, `.TS`, `tS`, `cpp`, `C++`, `.CPP`).
+- **Comprehensive System Architecture Specification**:
+  - Published [`ARCHITECTURE.md`](ARCHITECTURE.md) documenting core data flow, Myers diff engine, storage isolation, and client security boundaries.
+
+### Fixed
+- **Atomic File Writes for Zero Data Corruption**:
+  - Implemented atomic writes via temporary sibling files (`.tmp`) and atomic file renaming in Electron `storageService.ts` and VS Code `storage.ts`.
+  - Resolved race condition where deleted snippets reappeared in the VS Code extension by adding a `skipMerge` option to `saveSnippets`.
+- **Desktop Electron Security Hardening**:
+  - Enforced single-instance application lock (`app.requestSingleInstanceLock()`) with automated second-instance window focusing.
+  - Implemented `will-navigate` interception to keep local execution inside the app and route external links securely through `shell.openExternal`.
+  - Restricted `LAUNCH_INSTALLER` IPC handler to only launch verified executables inside the user's Downloads directory.
+- **VS Code Extension Data Normalization**:
+  - Routed captured and AI-generated snippets in VS Code through canonical language and technology normalization utilities before persisting.
+  - Enriched QuickPick search results with folders, languages, and tags.
+- **Export & Backup Typo Corrections**:
+  - Fixed file extension on Git sync manifest downloads (`.json` instead of truncated `on`).
+  - Fixed file extension labels and filters for compressed backups (`.json.gz` and `.json`).
+
+---
+
 ## [0.3.1] - 2026-10-03
 
 ### Fixed

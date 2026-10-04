@@ -1162,7 +1162,7 @@ export function Sidebar({
                 className="btn justify-center text-xs py-1 text-purple-300 border-purple-500/25 bg-purple-500/10 hover:border-purple-400 cursor-pointer"
                 onClick={onExportCompressedBackup}
               >
-                <FileArchive size={12} className="text-purple-400" /> Compressed (on.gz)
+                <FileArchive size={12} className="text-purple-400" /> Compressed (.json.gz)
               </button>
             )}
 

@@ -50,12 +50,12 @@ export class SnippetsTreeProvider implements vscode.TreeDataProvider<SnippetTree
     }
 
     if (!element) {
-      // Top level: Categories/Domains
+      // Top level: Folders & Categories
       const categories = new Set<string>();
-      snippets.forEach((s) => categories.add(s.category || 'Uncategorized'));
+      snippets.forEach((s) => categories.add(s.folder || s.category || 'Uncategorized'));
 
       const categoryItems = Array.from(categories)
-        .sort()
+        .sort((a, b) => a.localeCompare(b))
         .map(
           (cat) =>
             new SnippetTreeItem(
@@ -69,9 +69,9 @@ export class SnippetsTreeProvider implements vscode.TreeDataProvider<SnippetTree
     }
 
     if (element.isCategory) {
-      // Children of category
+      // Children of folder/category
       const filtered = snippets.filter(
-        (s) => (s.category || 'Uncategorized') === element.label
+        (s) => (s.folder || s.category || 'Uncategorized') === element.label
       );
       const items = filtered.map(
         (s) => new SnippetTreeItem(s.title, vscode.TreeItemCollapsibleState.None, s, false)

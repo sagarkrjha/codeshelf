@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import path from 'node:path';
 import {
   type Snippet,
   type CodeShelfConfig,
@@ -56,6 +57,29 @@ export function readConfigFile(): CodeShelfConfig {
   }
 }
 
+function atomicWriteFileSync(filePath: string, content: string): void {
+  const dir = path.dirname(filePath);
+  const tempPath = path.join(dir, `.${path.basename(filePath)}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}.tmp`);
+  fs.writeFileSync(tempPath, content, 'utf-8');
+  try {
+    fs.renameSync(tempPath, filePath);
+  } catch (err) {
+    // Fallback on Windows if destination file exists and is temporarily locked
+    try {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+      fs.renameSync(tempPath, filePath);
+    } catch {
+      // Final fallback to direct write
+      fs.writeFileSync(filePath, content, 'utf-8');
+      try {
+        if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+      } catch {}
+    }
+  }
+}
+
 export function writeConfigFile(incomingConfig: Partial<CodeShelfConfig>): boolean {
   ensureStorageDir();
   try {
@@ -63,7 +87,7 @@ export function writeConfigFile(incomingConfig: Partial<CodeShelfConfig>): boole
     const merged = mergeConfig(current, incomingConfig);
     const data = JSON.stringify(merged, null, 2);
     lastKnownConfigContent = data;
-    fs.writeFileSync(CONFIG_FILE, data, 'utf-8');
+    atomicWriteFileSync(CONFIG_FILE, data);
     return true;
   } catch (err) {
     console.error('Failed to write config file:', err);
@@ -89,7 +113,7 @@ export function readSnippetsFromFile(): Snippet[] | null {
 }
 
 /**
- * Writes snippets directly to snippets.json.
+ * Writes snippets directly to snippets.json using atomic writes.
  * Does NOT perform union merge so snippet deletions and edits persist cleanly.
  */
 export function writeSnippetsToFile(snippets: Snippet[]): boolean {
@@ -97,7 +121,7 @@ export function writeSnippetsToFile(snippets: Snippet[]): boolean {
   try {
     const data = JSON.stringify(snippets, null, 2);
     lastKnownSnippetsContent = data;
-    fs.writeFileSync(PRIMARY_STORAGE_FILE, data, 'utf-8');
+    atomicWriteFileSync(PRIMARY_STORAGE_FILE, data);
     return true;
   } catch (err) {
     console.error('Failed to write snippets file:', err);

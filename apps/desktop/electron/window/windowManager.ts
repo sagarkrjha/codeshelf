@@ -89,6 +89,22 @@ export function createMainWindow(options: WindowOptions): BrowserWindow {
     console.error('did-fail-load:', errorCode, errorDescription, validatedURL);
   });
 
+  win.webContents.on('will-navigate', (event, navigationUrl) => {
+    try {
+      const parsed = new URL(navigationUrl);
+      const isDevServer = parsed.origin === 'http://localhost:5173';
+      const isFile = parsed.protocol === 'file:';
+      if (!isDevServer && !isFile) {
+        event.preventDefault();
+        if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+          shell.openExternal(parsed.href);
+        }
+      }
+    } catch {
+      event.preventDefault();
+    }
+  });
+
   win.webContents.setWindowOpenHandler(({ url: targetUrl }) => {
     try {
       const parsed = new URL(targetUrl);

@@ -27,6 +27,7 @@ export interface Snippet {
   code: string;
   language: string;
   category?: string;
+  folder?: string;
   subcategory?: string;
   tags: string[];
   technology?: string[];
@@ -47,6 +48,7 @@ export interface CreateSnippetInput {
   language: string;
   description?: string;
   category?: string;
+  folder?: string;
   subcategory?: string;
   tags?: string[];
   technology?: string[];
@@ -62,6 +64,7 @@ export interface UpdateSnippetInput {
   language?: string;
   description?: string;
   category?: string;
+  folder?: string;
   subcategory?: string;
   tags?: string[];
   technology?: string[];
@@ -76,6 +79,7 @@ export interface SnippetFilter {
   query?: string;
   technology?: string | string[];
   domain?: string | string[];
+  folder?: string | string[];
   subcategory?: string | string[];
   usage?: string | string[];
   language?: string | string[];

@@ -7,6 +7,9 @@ import {
   autofillSnippetDetails,
   validateCreateSnippetInput,
   AVAILABLE_GEMINI_MODELS,
+  canonicalizeLanguage,
+  normalizeTechnologies,
+  normalizeTags,
   type CreateSnippetInput,
   type Snippet,
 } from '@codeshelf/shared';
@@ -185,15 +188,20 @@ export function registerAiCommands(
         comprehensiveDescription = explanationParts.join('\n\n');
       }
 
+      const normalizedLang = canonicalizeLanguage(languageId);
+      const normalizedTech = normalizeTechnologies(initialTech || [normalizedLang]);
+      const normalizedTagsList = normalizeTags(initialTags);
+
       const snippetInput: CreateSnippetInput = {
         title: confirmedTitle.trim(),
         code: selectedText,
-        language: languageId,
+        language: normalizedLang,
         description: comprehensiveDescription,
-        category: initialCategory,
+        category: initialCategory.trim(),
+        folder: initialCategory.trim(),
         subcategory: initialSubcategory,
-        technology: initialTech,
-        tags: initialTags,
+        technology: normalizedTech,
+        tags: normalizedTagsList,
         usage: aiResult.usage.length > 0 ? aiResult.usage : heuristics.usage,
         complexity: initialComplexity as any,
       };
@@ -212,6 +220,7 @@ export function registerAiCommands(
         code: snippetInput.code,
         language: snippetInput.language,
         category: snippetInput.category,
+        folder: snippetInput.folder,
         subcategory: snippetInput.subcategory,
         technology: snippetInput.technology,
         tags: snippetInput.tags || [],

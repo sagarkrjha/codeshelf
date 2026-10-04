@@ -215,7 +215,7 @@ export function App() {
           type="file"
           ref={jsonInputRef}
           onChange={onJsonUploadChange}
-          accept="on,on.gz,.gz"
+          accept=".json,.json.gz,.gz"
           className="hidden"
         />
 

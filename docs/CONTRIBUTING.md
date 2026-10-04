@@ -51,20 +51,31 @@ pnpm run typecheck
 
 # Run test suite
 pnpm run test
+
+# Run micro-benchmarks
+pnpm run bench
 ```
 
 ---
 
 ## Workspace Structure
 
-- `packages/shared`: Shared types, domain logic, AI utilities (`@google/genai`), diffing, and Markdown serialization.
-- `apps/web`: React-based web client and shared UI components.
-- `apps/desktop`: Electron wrapper connecting desktop native capabilities with the web client.
-- `apps/vscode`: Visual Studio Code extension with commands, tree views, and editor integrations.
+- `packages/shared`: Shared types, domain models (`folder`, `category`, `technologies`, `language`), canonicalization utilities, AI utilities (`@google/genai`), diffing, and Markdown serialization.
+- `apps/web`: React-based web client and shared UI components with instant search, split view, and Monaco/editor integration.
+- `apps/desktop`: Electron wrapper connecting desktop native capabilities with the web client via hardened IPC and atomic JSON storage.
+- `apps/vscode`: Visual Studio Code extension with commands, tree views, selection capture, and editor integrations.
 
 ---
 
 ## Development Guidelines
+
+### Core Architectural Principles
+
+1. **Shared Logic Lives in Shared**: Any data models, taxonomy normalization, search ranking, diffing, and markdown serialization must live in `@codeshelf/shared` rather than being duplicated in individual client apps.
+2. **Strict TypeScript & Declarations**: `@codeshelf/shared` is configured with `isolatedDeclarations: true`. Exported functions and types must have explicit type annotations.
+3. **Preserve Content Integrity**: Source code and snippet markdown must never have meaningful whitespace or newlines silently altered.
+4. **Data Normalization**: Never scatter `.toLowerCase()` for technology or language comparisons. Always utilize canonical helpers (`normalizeTechnology`, `normalizeLanguage`, `normalizeExtension`, `canonicalizeTechnology`).
+5. **Atomic Persistence**: Disk-backed storage routines must use atomic temporary-file writes to eliminate corruption risks during unexpected power/system loss.
 
 ### Git & Commit Conventions
 
@@ -84,6 +95,7 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/):
 4. **Ensure Clean Checks**:
    - `pnpm run typecheck`
    - `pnpm run test`
+   - `pnpm run build`
 5. **Open a PR**: Submit a pull request against `main`. Provide a clear description of what changed and link any relevant issues.
 
 ---

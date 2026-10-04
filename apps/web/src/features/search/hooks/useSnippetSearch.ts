@@ -71,6 +71,7 @@ export function useSnippetSearch(snippets: Snippet[]) {
     let langFilter = '';
     let tagFilter = '';
     let domainFilter = '';
+    let folderFilter = '';
 
     const langMatch = raw.match(/lang:(\S+)/i);
     if (langMatch) {
@@ -84,6 +85,12 @@ export function useSnippetSearch(snippets: Snippet[]) {
       raw = raw.replace(tagMatch[0], '').trim();
     }
 
+    const folderMatch = raw.match(/folder:(\S+)/i);
+    if (folderMatch) {
+      folderFilter = folderMatch[1]!.toLowerCase();
+      raw = raw.replace(folderMatch[0], '').trim();
+    }
+
     const domainMatch = raw.match(/domain:(\S+)/i);
     if (domainMatch) {
       domainFilter = domainMatch[1]!.toLowerCase();
@@ -95,6 +102,7 @@ export function useSnippetSearch(snippets: Snippet[]) {
       langFilter,
       tagFilter,
       domainFilter,
+      folderFilter,
     };
   }, [searchQuery]);
 
@@ -102,6 +110,7 @@ export function useSnippetSearch(snippets: Snippet[]) {
   const activeModalFilterCount = useMemo(() => {
     let count = 0;
     if (modalFilter.domain) count += Array.isArray(modalFilter.domain) ? modalFilter.domain.length : 1;
+    if (modalFilter.folder) count += Array.isArray(modalFilter.folder) ? modalFilter.folder.length : 1;
     if (modalFilter.subcategory) count += Array.isArray(modalFilter.subcategory) ? modalFilter.subcategory.length : 1;
     if (modalFilter.technology) count += Array.isArray(modalFilter.technology) ? modalFilter.technology.length : 1;
     if (modalFilter.language) count += Array.isArray(modalFilter.language) ? modalFilter.language.length : 1;
@@ -119,13 +128,16 @@ export function useSnippetSearch(snippets: Snippet[]) {
       baseList = filterSnippets(snippets, modalFilter);
     }
 
-    const { freeText, langFilter, tagFilter, domainFilter } = parsedSearch;
+    const { freeText, langFilter, tagFilter, domainFilter, folderFilter } = parsedSearch;
 
     const matched = baseList.filter((s) => {
+      const folderOrCategory = (s.folder || s.category || '').toLowerCase();
+
       // 1. Prefix query filters
       if (langFilter && !s.language.toLowerCase().includes(langFilter)) return false;
       if (tagFilter && !s.tags.some((t) => t.toLowerCase().includes(tagFilter))) return false;
-      if (domainFilter && (!s.category || !s.category.toLowerCase().includes(domainFilter))) return false;
+      if (folderFilter && !folderOrCategory.includes(folderFilter)) return false;
+      if (domainFilter && !folderOrCategory.includes(domainFilter)) return false;
 
       // 2. Free text matching (when semantic ranking is disabled)
       if (freeText && !semanticSearchEnabled) {
@@ -133,6 +145,7 @@ export function useSnippetSearch(snippets: Snippet[]) {
           s.title.toLowerCase().includes(freeText) ||
           s.code.toLowerCase().includes(freeText) ||
           s.language.toLowerCase().includes(freeText) ||
+          folderOrCategory.includes(freeText) ||
           s.tags.some((t) => t.toLowerCase().includes(freeText)) ||
           (s.description && s.description.toLowerCase().includes(freeText));
         if (!matchesFreeText) return false;
@@ -140,10 +153,15 @@ export function useSnippetSearch(snippets: Snippet[]) {
 
       // 3. Facet matching
       if (selectedFacet.type === 'domain' || selectedFacet.type === 'folder') {
-        if (!s.category || s.category.trim().toLowerCase() !== selectedFacet.value.trim().toLowerCase()) return false;
+        const targetVal = selectedFacet.value.trim().toLowerCase();
+        const snippetFolderOrCategory = (s.folder || s.category || '').trim().toLowerCase();
+        if (snippetFolderOrCategory !== targetVal) return false;
       } else if (selectedFacet.type === 'subcategory') {
         if (!s.subcategory || s.subcategory.trim().toLowerCase() !== selectedFacet.value.trim().toLowerCase()) return false;
-        if (selectedFacet.parentCategory && (!s.category || s.category.trim().toLowerCase() !== selectedFacet.parentCategory.trim().toLowerCase())) return false;
+        if (selectedFacet.parentCategory) {
+          const snippetFolderOrCategory = (s.folder || s.category || '').trim().toLowerCase();
+          if (snippetFolderOrCategory !== selectedFacet.parentCategory.trim().toLowerCase()) return false;
+        }
       } else if (selectedFacet.type === 'tech') {
         const hasTech =
           s.technology?.some((t) => matchesTechnologyOrTag(selectedFacet.value, t)) ||

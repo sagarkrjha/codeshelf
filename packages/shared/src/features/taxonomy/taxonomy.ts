@@ -22,8 +22,9 @@ export function extractAllCategories(
   }
 
   for (const snippet of snippets) {
-    if (snippet.category && snippet.category.trim()) {
-      categories.add(snippet.category.trim());
+    const cat = (snippet.folder || snippet.category)?.trim();
+    if (cat) {
+      categories.add(cat);
     }
   }
 
@@ -31,13 +32,13 @@ export function extractAllCategories(
 }
 
 /**
- * Extracts a map of category names to their unique subcategories.
+ * Extracts a map of category/folder names to their unique subcategories.
  */
 export function extractCategorySubcategories(snippets: Snippet[]): Record<string, string[]> {
   const result: Record<string, Set<string>> = {};
 
   for (const snippet of snippets) {
-    const cat = snippet.category?.trim();
+    const cat = (snippet.folder || snippet.category)?.trim();
     const sub = snippet.subcategory?.trim();
     if (cat && sub) {
       if (!result[cat]) {
@@ -208,7 +209,11 @@ export function filterSnippets(snippets: Snippet[], filter: SnippetFilter): Snip
   };
 
   return snippets.filter((s) => {
-    if (filter.domain && !matchesCategoryOrFolder(filter.domain, s.category)) {
+    const targetFolderOrCategory = s.folder || s.category;
+    if (filter.folder && !matchesCategoryOrFolder(filter.folder, targetFolderOrCategory)) {
+      return false;
+    }
+    if (filter.domain && !matchesCategoryOrFolder(filter.domain, targetFolderOrCategory)) {
       return false;
     }
     if (filter.subcategory && !matchesSubcategory(filter.subcategory, s.subcategory)) {
@@ -241,9 +246,12 @@ export function filterSnippets(snippets: Snippet[], filter: SnippetFilter): Snip
       const inTitle = s.title.toLowerCase().includes(q);
       const inCode = s.code.toLowerCase().includes(q);
       const inDesc = s.description?.toLowerCase().includes(q);
+      const inCategory = Boolean(s.category?.toLowerCase().includes(q));
+      const inFolder = Boolean(s.folder?.toLowerCase().includes(q));
+      const inLang = Boolean(s.language?.toLowerCase().includes(q));
       const inTags = s.tags.some((t) => matchesTechnologyOrTag(q, t) || t.toLowerCase().includes(q));
       const inTech = s.technology?.some((t) => matchesTechnologyOrTag(q, t) || t.toLowerCase().includes(q));
-      if (!inTitle && !inCode && !inDesc && !inTags && !inTech) {
+      if (!inTitle && !inCode && !inDesc && !inTags && !inTech && !inCategory && !inFolder && !inLang) {
         return false;
       }
     }
