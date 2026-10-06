@@ -354,6 +354,72 @@ int y = 2;
   assert.equal(blocks[1]?.code, 'int y = 2;');
 });
 
+test('unified remark-parse and remark-stringify generate markdown, parse to JSON AST, and extract/render', async () => {
+  const {
+    markdownToJsonAst,
+    jsonAstToMarkdown,
+    generateMarkdownAstDocument,
+    extractCodeBlocksFromAst,
+    extractAndParseAstToMarkdown,
+  } = await import('./markdownAst');
+
+  const originalMarkdown = `# Quicksort Algorithm
+
+Quicksort is an efficient, in-place sorting algorithm.
+
+### Implementation
+
+\`\`\`typescript
+export function quicksort(arr: number[]): number[] {
+  if (arr.length <= 1) return arr;
+  const pivot = arr[arr.length - 1]!;
+  const left = arr.filter((x) => x < pivot);
+  const right = arr.filter((x) => x > pivot);
+  return [...quicksort(left), pivot, ...quicksort(right)];
+}
+\`\`\`
+
+## Usage Description
+Ideal for general-purpose in-memory array sorting when average-case linearithmic performance is desired.
+`;
+
+  // 1. Generate results in Markdown and parse to JSON AST
+  const ast = markdownToJsonAst(originalMarkdown);
+  assert.equal(ast.type, 'root');
+  assert.ok(Array.isArray(ast.children));
+  assert.ok(ast.children.length >= 3);
+
+  // 2. Convert AST to JSON string for storage
+  const storedJson = JSON.stringify(ast);
+  assert.ok(storedJson.includes('"type":"root"'));
+  assert.ok(storedJson.includes('"type":"heading"'));
+  assert.ok(storedJson.includes('"type":"code"'));
+
+  // 3. Extract JSON AST from storage
+  const extractedAst = JSON.parse(storedJson);
+  assert.equal(extractedAst.type, 'root');
+
+  // 4. Parse extracted JSON AST back to renderable Markdown using remark-stringify
+  const renderedMarkdown = jsonAstToMarkdown(extractedAst);
+  assert.ok(renderedMarkdown.includes('# Quicksort Algorithm'));
+  assert.ok(renderedMarkdown.includes('```typescript'));
+  assert.ok(renderedMarkdown.includes('export function quicksort'));
+  assert.ok(renderedMarkdown.includes('## Usage Description'));
+
+  // 5. Verify generateMarkdownAstDocument and extractCodeBlocksFromAst
+  const doc = generateMarkdownAstDocument(originalMarkdown, 'snip-qs');
+  assert.equal(doc.snippet?.title, 'Quicksort Algorithm');
+  assert.ok(doc.ast.type === 'root');
+
+  const astBlocks = extractCodeBlocksFromAst(doc.ast);
+  assert.equal(astBlocks.length, 1);
+  assert.equal(astBlocks[0]?.language, 'typescript');
+  assert.ok(astBlocks[0]?.code.includes('export function quicksort'));
+
+  const parsedBack = extractAndParseAstToMarkdown(doc);
+  assert.ok(parsedBack.includes('# Quicksort Algorithm'));
+});
+
 
 
 

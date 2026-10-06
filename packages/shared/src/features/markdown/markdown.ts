@@ -43,6 +43,102 @@ export function cleanCodeContent(rawCode: string): string {
 }
 
 /**
+ * Infers a clean, descriptive heading for a code block by inspecting its first comment,
+ * top-level declaration (function, class, type, interface, export, test suite, struct),
+ * or semantic role, avoiding generic 'Block 1 (language)' placeholders.
+ */
+export function inferDescriptiveBlockTitle(
+  code: string,
+  _language = 'typescript',
+  blockIndex = 0
+): string {
+  if (!code || !code.trim()) {
+    return `Implementation Details`;
+  }
+
+  const lines = code.trim().split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+
+  // 1. Check for leading single-line or multi-line comment stating purpose or file
+  for (const line of lines.slice(0, 3)) {
+    const commentMatch = line.match(/^(?:\/\/|#|\/\*+)\s*([^/*\n\r]+?)(?:\*+\/)?$/);
+    if (commentMatch && commentMatch[1]) {
+      const commentText = commentMatch[1].trim();
+      // Only treat as title if it's not a generic linter directive or pragma
+      if (
+        commentText.length > 2 &&
+        commentText.length < 50 &&
+        !/^(eslint|tslint|prettier|@ts-|#!\/|use strict|copyright)/i.test(commentText)
+      ) {
+        return commentText.replace(/^[-:=*#\s]+|[-:=*#\s]+$/g, '');
+      }
+    }
+  }
+
+  // 2. Check for test suite / test case: describe('...', ...) or test('...', ...)
+  const testMatch = code.match(/\b(?:describe|test|it)\s*\(\s*['"`]([^'"`]+)['"`]/i);
+  if (testMatch && testMatch[1]) {
+    return `Tests: ${testMatch[1].trim()}`;
+  }
+
+  // 3. Check for exported or top-level class / struct / interface / enum / type
+  const classMatch = code.match(/\b(?:export\s+)?(?:default\s+)?class\s+([A-Za-z0-9_]+)/);
+  if (classMatch && classMatch[1]) {
+    return `Class ${classMatch[1]}`;
+  }
+
+  const interfaceMatch = code.match(/\b(?:export\s+)?interface\s+([A-Za-z0-9_]+)/);
+  if (interfaceMatch && interfaceMatch[1]) {
+    return `Interface ${interfaceMatch[1]}`;
+  }
+
+  const typeMatch = code.match(/\b(?:export\s+)?type\s+([A-Za-z0-9_]+)\s*=/);
+  if (typeMatch && typeMatch[1]) {
+    return `Type Definition ${typeMatch[1]}`;
+  }
+
+  const structMatch = code.match(/\b(?:pub\s+)?struct\s+([A-Za-z0-9_]+)/);
+  if (structMatch && structMatch[1]) {
+    return `Struct ${structMatch[1]}`;
+  }
+
+  // 4. Check for React Hook / Component / function: function use... or const use... =
+  const hookMatch = code.match(/\b(?:export\s+)?(?:function|const)\s+(use[A-Z0-9_][A-Za-z0-9_]*)/);
+  if (hookMatch && hookMatch[1]) {
+    return `Hook: ${hookMatch[1]}`;
+  }
+
+  const funcMatch = code.match(/\b(?:export\s+)?(?:async\s+)?function\s+([A-Za-z0-9_]+)/);
+  if (funcMatch && funcMatch[1]) {
+    return `Function: ${funcMatch[1]}()`;
+  }
+
+  const constFnMatch = code.match(/\b(?:export\s+)?const\s+([A-Za-z0-9_]+)\s*=\s*(?:async\s*)?\(/);
+  if (constFnMatch && constFnMatch[1]) {
+    return `Function: ${constFnMatch[1]}()`;
+  }
+
+  // Python def / class
+  const pyDefMatch = code.match(/\bdef\s+([A-Za-z0-9_]+)\s*\(/);
+  if (pyDefMatch && pyDefMatch[1]) {
+    return `Function: ${pyDefMatch[1]}()`;
+  }
+  const pyClassMatch = code.match(/\bclass\s+([A-Za-z0-9_]+)/);
+  if (pyClassMatch && pyClassMatch[1]) {
+    return `Class ${pyClassMatch[1]}`;
+  }
+
+  // 5. Semantic fallbacks based on index
+  const roleNames = [
+    'Core Implementation',
+    'Supporting Utilities',
+    'Execution & Test Suite',
+    'Configuration & Usage',
+  ];
+  return roleNames[blockIndex] || `Component ${blockIndex + 1}`;
+}
+
+
+/**
  * Robust line-by-line parser for fenced code blocks in Markdown (CommonMark compliant).
  * Correctly extracts adjacent blocks, tildes (~~~), backticks (```), complex language
  * identifiers (c++, c#, etc.), and infers descriptive names from preceding headings/labels.
@@ -75,6 +171,7 @@ export function parseFencedCodeBlocks(
   let fenceChar = '';
   let fenceLength = 0;
   let blockLang = '';
+  let blockInfoTitle = '';
   let blockStartIndex = 0;
   let blockStartLineIdx = 0;
   let codeLines: string[] = [];
@@ -96,11 +193,22 @@ export function parseFencedCodeBlocks(
           continue;
         }
 
-        // Extract language from info string (first word, stripping punctuation except +, #, _, -, .)
-        const langWord = rawInfo.split(/\s+/)[0] || '';
-        const cleanLang = langWord
-          .replace(/^[^a-zA-Z0-9+#_.-]+|[^a-zA-Z0-9+#_.-]+$/g, '')
-          .toLowerCase();
+        // Extract language and optional title/name from info string
+        // Examples: ```typescript title="QuickSort Implementation"
+        //           ```python name=binary_search.py
+        let cleanLang = defaultLanguage;
+        blockInfoTitle = '';
+        if (rawInfo) {
+          const titleMatch = rawInfo.match(/(?:title|name|filename)=["']?([^"'\s]+)["']?/i);
+          if (titleMatch && titleMatch[1]) {
+            blockInfoTitle = titleMatch[1].trim();
+          }
+          const langWord = rawInfo.split(/\s+/)[0] || '';
+          const parsedLang = langWord
+            .replace(/^[^a-zA-Z0-9+#_.-]+|[^a-zA-Z0-9+#_.-]+$/g, '')
+            .toLowerCase();
+          cleanLang = parsedLang || defaultLanguage;
+        }
 
         blockLang = cleanLang || defaultLanguage;
         blockStartIndex = lineStarts[i]!;
@@ -109,6 +217,7 @@ export function parseFencedCodeBlocks(
         inBlock = true;
       }
     } else {
+
       // Check for closing fence: 0-3 spaces, >= fenceLength of fenceChar, optional whitespace, nothing else
       const closeRegex = new RegExp(`^[ \\t]{0,3}\\${fenceChar}{${fenceLength},}[ \\t]*$`);
       if (closeRegex.test(line)) {
@@ -117,7 +226,7 @@ export function parseFencedCodeBlocks(
         const rawCode = codeLines.join('\n');
         const cleaned = cleanCodeContent(rawCode);
 
-        // Infer name from preceding lines before the opening fence
+        // Infer name: preceding heading > infoTitle > inferred descriptive title
         let inferredName = '';
         for (let j = blockStartLineIdx - 1; j >= 0 && j >= blockStartLineIdx - 5; j--) {
           const prevLine = lines[j]!.trim();
@@ -133,11 +242,22 @@ export function parseFencedCodeBlocks(
           }
         }
 
+        if (!inferredName && blockInfoTitle) {
+          inferredName = blockInfoTitle;
+        }
+
+        // If no preceding heading or info title found, infer a proper descriptive heading from the code itself
+        if (!inferredName) {
+          inferredName = inferDescriptiveBlockTitle(cleaned, blockLang, blocks.length);
+        }
+
+
+
         if (cleaned && !/^#{1,4}\s+(?:Implementation|Solution|Code|Approach|Algorithm)\s*$/i.test(cleaned)) {
           blocks.push({
             code: cleaned,
             language: blockLang,
-            name: inferredName || `Block ${blocks.length + 1} (${blockLang})`,
+            name: inferredName,
             startIndex: blockStartIndex,
             endIndex: blockEndIndex,
           });
@@ -169,10 +289,21 @@ export function parseFencedCodeBlocks(
           break;
         }
       }
+
+      if (!inferredName && blockInfoTitle) {
+        inferredName = blockInfoTitle;
+      }
+
+      if (!inferredName) {
+        inferredName = inferDescriptiveBlockTitle(cleaned, blockLang, blocks.length);
+      }
+
+
+
       blocks.push({
         code: cleaned,
         language: blockLang,
-        name: inferredName || `Block ${blocks.length + 1} (${blockLang})`,
+        name: inferredName,
         startIndex: blockStartIndex,
         endIndex: text.length,
       });
@@ -181,6 +312,7 @@ export function parseFencedCodeBlocks(
 
   return blocks;
 }
+
 
 
 export function serializeSnippetToMarkdown(snippet: Snippet): string {
@@ -238,7 +370,8 @@ export function serializeSnippetToMarkdown(snippet: Snippet): string {
   if (snippet.codeBlocks && snippet.codeBlocks.length > 1) {
     for (let i = 0; i < snippet.codeBlocks.length; i++) {
       const block = snippet.codeBlocks[i]!;
-      lines.push(`### ${block.name || `Code Block ${i + 1}`}`);
+      const blockTitle = block.name || inferDescriptiveBlockTitle(block.code, block.language, i);
+      lines.push(`### ${blockTitle}`);
       lines.push('');
       lines.push(`\`\`\`${block.language || snippet.language}`);
       lines.push(cleanCodeContent(block.code).trim());

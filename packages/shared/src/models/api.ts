@@ -26,7 +26,9 @@ export interface CodeShelfApi {
   openExternalUrl: (url: string) => Promise<boolean>;
   downloadUpdateFile: (url: string, fileName?: string) => Promise<DownloadResult>;
   launchInstaller: (filePath: string) => Promise<boolean>;
+  quitAndInstallUpdate: (filePath?: string) => Promise<boolean>;
   onUpdateAvailable: (callback: (info: AppUpdateInfo) => void) => () => void;
   onDownloadProgress: (callback: (progress: DownloadProgress) => void) => () => void;
 }
+
 

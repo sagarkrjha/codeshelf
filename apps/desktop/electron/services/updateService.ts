@@ -181,3 +181,47 @@ export async function downloadUpdateFile(
     throw err;
   }
 }
+
+export async function quitAndInstallUpdate(filePath: string): Promise<boolean> {
+  const resolvedTarget = path.resolve(filePath);
+  if (!fs.existsSync(resolvedTarget)) {
+    return false;
+  }
+
+  const { spawn } = await import('node:child_process');
+
+  if (process.platform === 'win32') {
+    // On Windows, NSIS installers accept /S for silent install or standard execution
+    // Spawn detached so installer continues running after app exits
+    const child = spawn(resolvedTarget, ['/S'], {
+      detached: true,
+      stdio: 'ignore',
+    });
+    child.unref();
+  } else if (process.platform === 'darwin') {
+    // On macOS, open the installer/dmg
+    const child = spawn('open', [resolvedTarget], {
+      detached: true,
+      stdio: 'ignore',
+    });
+    child.unref();
+  } else {
+    // Linux AppImage / deb / rpm
+    try {
+      fs.chmodSync(resolvedTarget, 0o755);
+    } catch {}
+    const child = spawn(resolvedTarget, [], {
+      detached: true,
+      stdio: 'ignore',
+    });
+    child.unref();
+  }
+
+  // Gracefully terminate the current application to let the installer update files
+  setTimeout(() => {
+    app.quit();
+  }, 300);
+
+  return true;
+}
+

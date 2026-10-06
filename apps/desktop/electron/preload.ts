@@ -94,6 +94,10 @@ const api: CodeShelfApi = {
     return ipcRenderer.invoke(IPC_CHANNELS.LAUNCH_INSTALLER, filePath);
   },
 
+  quitAndInstallUpdate: (filePath?: string): Promise<boolean> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.QUIT_AND_INSTALL_UPDATE, filePath);
+  },
+
   onUpdateAvailable: (callback: (info: AppUpdateInfo) => void): (() => void) => {
     const listener = (_event: Electron.IpcRendererEvent, info: AppUpdateInfo) => {
       try {

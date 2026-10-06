@@ -68,13 +68,13 @@ export function activate(context: vscode.ExtensionContext) {
   const checkForUpdatesCommand = vscode.commands.registerCommand(
     'codeshelf.checkForUpdates',
     () => {
-      checkExtensionUpdates(extVersion, false);
+      checkExtensionUpdates(extVersion, false, context);
     }
   );
 
   // Background auto-check on startup
   setTimeout(() => {
-    checkExtensionUpdates(extVersion, true);
+    checkExtensionUpdates(extVersion, true, context);
   }, 4000);
 
   context.subscriptions.push(

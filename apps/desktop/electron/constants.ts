@@ -27,6 +27,7 @@ export const IPC_CHANNELS = {
   OPEN_EXTERNAL_URL: 'open-external-url',
   DOWNLOAD_UPDATE_FILE: 'download-update-file',
   LAUNCH_INSTALLER: 'launch-installer',
+  QUIT_AND_INSTALL_UPDATE: 'quit-and-install-update',
 
   // Main to Renderer Events
   SNIPPETS_CHANGED: 'snippets-changed',

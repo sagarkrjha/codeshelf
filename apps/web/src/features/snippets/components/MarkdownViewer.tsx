@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import { Marked } from 'marked';
+import { markdownToJsonAst, jsonAstToMarkdown, type MarkdownJsonAstDocument } from '@codeshelf/shared';
+import type { Root } from 'mdast';
 import Prism from 'prismjs';
 import 'prismjs/themes/prism-tomorrow.css';
 
@@ -20,7 +22,7 @@ import 'prismjs/components/prism-markdown';
 import 'prismjs/components/prism-yaml';
 
 interface MarkdownViewerProps {
-  content: string;
+  content: string | Root | MarkdownJsonAstDocument;
 }
 
 const LANGUAGE_ALIASES: Record<string, string> = {
@@ -133,10 +135,28 @@ markedInstance.use({
 });
 
 export function MarkdownViewer({ content }: MarkdownViewerProps) {
+  // Extract and parse markdown through Unified/Remark JSON AST pipeline
   const cleanContent = useMemo(() => {
     if (!content) return '';
+
+    // If an AST document or Root is passed, extract markdown from AST JSON via remark-stringify
+    if (typeof content === 'object') {
+      if ('ast' in content && content.ast) {
+        return jsonAstToMarkdown(content.ast);
+      }
+      return jsonAstToMarkdown(content as Root);
+    }
+
     // Strip leading YAML frontmatter if present to ensure clean rendered preview
-    return content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '');
+    const rawMarkdown = content.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, '');
+
+    // Parse markdown into AST JSON with remark-parse, extract/re-serialize with remark-stringify
+    try {
+      const ast = markdownToJsonAst(rawMarkdown);
+      return jsonAstToMarkdown(ast);
+    } catch {
+      return rawMarkdown;
+    }
   }, [content]);
 
   const htmlContent = useMemo(() => {

@@ -9,7 +9,6 @@ import {
   RefreshCw,
   X,
   AlertCircle,
-  Play,
   Folder,
 } from 'lucide-react';
 
@@ -98,6 +97,14 @@ export function UpdateModal({
   const handleLaunchInstaller = async (filePath: string) => {
     if (window.codeshelfApi?.launchInstaller) {
       await window.codeshelfApi.launchInstaller(filePath);
+    }
+  };
+
+  const handleRestartAndInstall = async (filePath: string) => {
+    if (window.codeshelfApi?.quitAndInstallUpdate) {
+      await window.codeshelfApi.quitAndInstallUpdate(filePath);
+    } else {
+      await handleLaunchInstaller(filePath);
     }
   };
 
@@ -276,18 +283,18 @@ export function UpdateModal({
                     <div className="flex items-center gap-2 text-xs">
                       <CheckCircle2 size={16} className="text-emerald-400 shrink-0" />
                       <span>
-                        Downloaded <strong className="text-text-main">{downloadedResult.fileName}</strong> to Downloads folder!
+                        Update ready to install: <strong className="text-text-main">{downloadedResult.fileName}</strong>
                       </span>
                     </div>
                     <div className="flex gap-2">
                       <button
-                        className="btn btn-primary text-xs py-1 px-2.5"
-                        onClick={() => handleLaunchInstaller(downloadedResult.filePath)}
+                        className="btn btn-primary text-xs py-1 px-3 flex items-center gap-1.5"
+                        onClick={() => handleRestartAndInstall(downloadedResult.filePath)}
                       >
-                        <Play size={12} /> Launch Installer
+                        <RefreshCw size={12} /> Restart & Update
                       </button>
                       <button
-                        className="btn text-xs py-1 px-2.5"
+                        className="btn text-xs py-1 px-2.5 flex items-center gap-1"
                         onClick={() => handleLaunchInstaller(downloadedResult.filePath)}
                       >
                         <Folder size={12} /> Open File

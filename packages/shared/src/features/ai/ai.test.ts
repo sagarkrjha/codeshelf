@@ -109,6 +109,7 @@ test('cleanJsonResponse and parseAutofillResponse handle fences and malformed JS
 {
   "title": "Sentinel Linear Search",
   "description": "Searches an unsorted array by placing a sentinel value at the end, eliminating loop bounds checking while retaining linear time complexity.",
+  "usageDescription": "Use this search technique in performance-sensitive low-level array scanning routines where bounds-checking overhead must be minimized.",
   "explanation": {
     "headings": ["algorithmicApproach", "loopOptimization", "tradeoffsAndConstraints", "practicalUseCases"],
     "content": {
@@ -134,6 +135,10 @@ test('cleanJsonResponse and parseAutofillResponse handle fences and malformed JS
   assert.strictEqual(result.title, 'Sentinel Linear Search');
   assert.strictEqual(result.category, 'Algorithms');
   assert.strictEqual(result.subcategory, 'Searching');
+  assert.strictEqual(
+    result.usageDescription,
+    'Use this search technique in performance-sensitive low-level array scanning routines where bounds-checking overhead must be minimized.'
+  );
   // Technology canonicalized & deduplicated to C++
   assert.deepStrictEqual(result.technology, ['C++']);
   // Tags normalized

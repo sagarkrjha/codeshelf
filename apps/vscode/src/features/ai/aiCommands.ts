@@ -10,6 +10,7 @@ import {
   canonicalizeLanguage,
   normalizeTechnologies,
   normalizeTags,
+  serializeSnippetToMarkdown,
   type CreateSnippetInput,
   type Snippet,
 } from '@codeshelf/shared';
@@ -150,12 +151,16 @@ export function registerAiCommands(
       const initialSubcategory = aiResult.subcategory || heuristics.subcategory || '';
       const initialTech = aiResult.technology.length > 0 ? aiResult.technology : heuristics.technology;
       const initialTags = aiResult.tags.length > 0 ? aiResult.tags : heuristics.tags;
-      const initialComplexity = aiResult.complexity || heuristics.complexity || 'Intermediate';
+      const initialComplexity = aiResult.complexity || heuristics.complexity;
       const initialDesc = aiResult.description || heuristics.description || '';
+
+      const complexityDisplay = initialComplexity?.time
+        ? `${initialComplexity.time}${initialComplexity.space ? ` / ${initialComplexity.space}` : ''}`
+        : 'O(1)';
 
       // Confirm Title
       const confirmedTitle = await vscode.window.showInputBox({
-        prompt: `CodeShelf AI: Review Snippet Title (${initialComplexity})`,
+        prompt: `CodeShelf AI: Review Snippet Title (${complexityDisplay})`,
         value: initialTitle,
         valueSelection: [0, initialTitle.length],
         validateInput: (val) => (val.trim().length === 0 ? 'Title is required' : null),
@@ -163,10 +168,14 @@ export function registerAiCommands(
       if (!confirmedTitle) return;
 
       // Build comprehensive description including dynamic explanation headings if available
-      let comprehensiveDescription = aiResult.description || initialDesc || '';
+      // Build comprehensive developer article description
+      const explanationParts: string[] = [];
+      const primarySummary = aiResult.description || initialDesc || '';
+      if (primarySummary) {
+        explanationParts.push(primarySummary);
+      }
+
       if (aiResult.explanation) {
-        const explanationParts: string[] = [];
-        if (comprehensiveDescription) explanationParts.push(comprehensiveDescription);
         if (Array.isArray(aiResult.explanation.headings) && aiResult.explanation.content) {
           for (const heading of aiResult.explanation.headings) {
             const body = aiResult.explanation.content[heading];
@@ -185,8 +194,15 @@ export function registerAiCommands(
           if (when) explanationParts.push(`### When to Use\n${when}`);
           if (how) explanationParts.push(`### How It Works\n${how}`);
         }
-        comprehensiveDescription = explanationParts.join('\n\n');
       }
+
+      // Add full-sentence Usage Description section
+      const usageSentence = aiResult.usageDescription?.trim();
+      if (usageSentence) {
+        explanationParts.push(`### Usage Description\n${usageSentence}`);
+      }
+
+      const comprehensiveDescription = explanationParts.join('\n\n');
 
       const normalizedLang = canonicalizeLanguage(languageId);
       const normalizedTech = normalizeTechnologies(initialTech || [normalizedLang]);
@@ -203,7 +219,7 @@ export function registerAiCommands(
         technology: normalizedTech,
         tags: normalizedTagsList,
         usage: aiResult.usage.length > 0 ? aiResult.usage : heuristics.usage,
-        complexity: initialComplexity as any,
+        complexity: initialComplexity,
       };
 
       const validation = validateCreateSnippetInput(snippetInput);
@@ -224,6 +240,7 @@ export function registerAiCommands(
         subcategory: snippetInput.subcategory,
         technology: snippetInput.technology,
         tags: snippetInput.tags || [],
+        usage: snippetInput.usage,
         complexity: snippetInput.complexity,
         version: 1,
         createdAt: now,
@@ -242,8 +259,8 @@ export function registerAiCommands(
       if (action === 'Copy Code') {
         await vscode.env.clipboard.writeText(newSnippet.code);
       } else if (action === 'Copy as Markdown') {
-        const mdCode = `\`\`\`${newSnippet.language}\n${newSnippet.code}\n\`\`\``;
-        await vscode.env.clipboard.writeText(mdCode);
+        const mdContent = serializeSnippetToMarkdown(newSnippet);
+        await vscode.env.clipboard.writeText(mdContent);
         vscode.window.showInformationMessage(`Copied "${newSnippet.title}" as Markdown.`);
       }
     }

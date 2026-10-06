@@ -12,6 +12,7 @@ import {
 import {
   checkForUpdates,
   downloadUpdateFile,
+  quitAndInstallUpdate,
 } from '../services/updateService';
 
 export function registerIpcHandlers(): void {
@@ -108,4 +109,16 @@ export function registerIpcHandlers(): void {
     }
     return false;
   });
+
+  ipcMain.handle(IPC_CHANNELS.QUIT_AND_INSTALL_UPDATE, async (_e, filePath?: string) => {
+    if (filePath && typeof filePath === 'string' && fs.existsSync(filePath)) {
+      const downloadsDir = path.resolve(app.getPath('downloads'));
+      const resolvedTarget = path.resolve(filePath);
+      if (resolvedTarget.startsWith(downloadsDir)) {
+        return quitAndInstallUpdate(resolvedTarget);
+      }
+    }
+    return false;
+  });
 }
+

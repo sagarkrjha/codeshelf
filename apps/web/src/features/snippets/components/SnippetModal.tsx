@@ -12,6 +12,7 @@ import {
   normalizeTags,
   normalizeTechnologies,
   canonicalizeLanguage,
+  inferDescriptiveBlockTitle,
 } from '@codeshelf/shared';
 import { MarkdownViewer } from './MarkdownViewer';
 import { getLocalConfig, getOrFetchGeminiApiKey } from '../../storage/storage';
@@ -572,19 +573,34 @@ Write your description, documentation, or intuition here...
     setErrorMsg('');
     setIsAiLoading(true);
 
+    // If multiple code blocks exist in the markdown, send the full markdown so the AI receives all code blocks
+    const codeForAi = (parsed.codeBlocks && parsed.codeBlocks.length > 1) ? markdown : parsed.code;
+
     try {
       const aiResult = await aiAutofillFromCode({
-        code: parsed.code,
+        code: codeForAi,
         language: parsed.language || 'typescript',
         apiKey,
         model: config.geminiModel,
+        previousMetadata: snippet ? {
+          title: snippet.title,
+          category: snippet.category,
+          subcategory: snippet.subcategory,
+          tags: snippet.tags,
+          technology: snippet.technology,
+          usage: snippet.usage,
+          complexity: snippet.complexity,
+        } : undefined,
       });
 
-      // Build comprehensive description including dynamic explanation headings if available
-      let comprehensiveDescription = aiResult.description || parsed.description || '';
+      // Build comprehensive developer article description
+      const explanationParts: string[] = [];
+      const primarySummary = aiResult.description || parsed.description || '';
+      if (primarySummary) {
+        explanationParts.push(primarySummary);
+      }
+
       if (aiResult.explanation) {
-        const explanationParts: string[] = [];
-        if (comprehensiveDescription) explanationParts.push(comprehensiveDescription);
         if (Array.isArray(aiResult.explanation.headings) && aiResult.explanation.content) {
           for (const heading of aiResult.explanation.headings) {
             const body = aiResult.explanation.content[heading];
@@ -603,8 +619,15 @@ Write your description, documentation, or intuition here...
           if (when) explanationParts.push(`### When to Use\n${when}`);
           if (how) explanationParts.push(`### How It Works\n${how}`);
         }
-        comprehensiveDescription = explanationParts.join('\n\n');
       }
+
+      // Add full-sentence Usage Description section
+      const usageSentence = aiResult.usageDescription?.trim();
+      if (usageSentence) {
+        explanationParts.push(`### Usage Description\n${usageSentence}`);
+      }
+
+      const comprehensiveDescription = explanationParts.join('\n\n');
 
       const updated: Snippet = {
         id: snippet?.id || 'temp',
@@ -624,8 +647,88 @@ Write your description, documentation, or intuition here...
         updatedAt: new Date().toISOString(),
       };
 
-      setMarkdown(serializeSnippetToMarkdown({ ...updated, markdown: undefined }));
-      setNoticeMsg('✨ Snippet successfully enriched with AI (What, Why, When, How)!');
+      // Construct article markdown:
+      // When multiple code blocks exist, weave the article flow cleanly
+      if (parsed.codeBlocks && parsed.codeBlocks.length > 1 && aiResult.explanation?.content) {
+        const fm = [
+          '---',
+          `title: ${JSON.stringify(updated.title)}`,
+          `language: ${updated.language}`,
+          `category: ${JSON.stringify(updated.category)}`,
+          updated.subcategory ? `subcategory: ${JSON.stringify(updated.subcategory)}` : '',
+          updated.tags.length > 0 ? `tags: [${updated.tags.map((t) => JSON.stringify(t)).join(', ')}]` : '',
+          updated.technology && updated.technology.length > 0 ? `technology: [${updated.technology.map((t) => JSON.stringify(t)).join(', ')}]` : '',
+          updated.usage && updated.usage.length > 0 ? `usage: [${updated.usage.map((u) => JSON.stringify(u)).join(', ')}]` : '',
+          updated.complexity?.time ? `time: ${JSON.stringify(updated.complexity.time)}` : '',
+          updated.complexity?.space ? `space: ${JSON.stringify(updated.complexity.space)}` : '',
+          '---',
+        ].filter(Boolean).join('\n');
+
+        const articleLines: string[] = [fm, '', `# ${updated.title}`, ''];
+        if (primarySummary) {
+          articleLines.push(primarySummary, '');
+        }
+
+        const headings = aiResult.explanation.headings || [];
+        const contentMap = aiResult.explanation.content;
+        // Section 1 (problem / motivation) before blocks
+        if (headings[0] && contentMap[headings[0]]) {
+          const title = headings[0].replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase()).trim();
+          articleLines.push(`### ${title}`, contentMap[headings[0]]!, '');
+        }
+
+        // Weave blocks with intermediate explanations
+        for (let i = 0; i < parsed.codeBlocks.length; i++) {
+          const block = parsed.codeBlocks[i]!;
+          const blockTitle = block.name || inferDescriptiveBlockTitle(block.code, block.language, i);
+          articleLines.push(`### ${blockTitle}`, '');
+          articleLines.push(`\`\`\`${block.language || updated.language}`);
+          articleLines.push(block.code.trim());
+          articleLines.push('```', '');
+
+          // Insert Section 2 (mechanism/data flow) between first and second block
+          if (i === 0 && headings[1] && contentMap[headings[1]]) {
+            const title = headings[1].replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase()).trim();
+            articleLines.push(`### ${title}`, contentMap[headings[1]]!, '');
+          }
+        }
+
+        // Section 3 (inputs/contract/edge cases)
+        if (headings[2] && contentMap[headings[2]]) {
+          const title = headings[2].replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase()).trim();
+          articleLines.push(`### ${title}`, contentMap[headings[2]]!, '');
+        }
+
+        // Section 4 (tradeoffs/limits)
+        if (headings[3] && contentMap[headings[3]]) {
+          const title = headings[3].replace(/([A-Z])/g, ' $1').replace(/^./, (s) => s.toUpperCase()).trim();
+          articleLines.push(`### ${title}`, contentMap[headings[3]]!, '');
+        }
+
+        // Usage Description as complete sentences
+        if (usageSentence) {
+          articleLines.push('## Usage Description', usageSentence, '');
+        } else if (updated.usage && updated.usage.length > 0) {
+          articleLines.push('## Usage');
+          for (const u of updated.usage) {
+            articleLines.push(`- ${u}`);
+          }
+          articleLines.push('');
+        }
+
+        // Complexity
+        if (updated.complexity?.time || updated.complexity?.space) {
+          articleLines.push('## Complexity');
+          if (updated.complexity.time) articleLines.push(`- **Time**: ${updated.complexity.time}`);
+          if (updated.complexity.space) articleLines.push(`- **Space**: ${updated.complexity.space}`);
+          articleLines.push('');
+        }
+
+        setMarkdown(articleLines.join('\n'));
+      } else {
+        setMarkdown(serializeSnippetToMarkdown({ ...updated, markdown: undefined }));
+      }
+      setNoticeMsg('✨ Snippet successfully enriched with AI analysis!');
       setTimeout(() => setNoticeMsg(''), 3500);
     } catch (err: any) {
       setErrorMsg(err.message || 'Gemini AI autofill failed.');
