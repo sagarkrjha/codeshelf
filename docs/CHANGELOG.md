@@ -4,6 +4,17 @@ All notable changes to the **CodeShelf** project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3] - 2026-10-07
+
+### Added
+- **Technical Documentation Overhaul**:
+  - Reorganized and expanded technical documentation under `docs/` (`ARCHITECTURE.md`, `INSTALLATION.md`, `USAGE.md`, `SEARCH.md`, `STORAGE.md`, `EXTENSION.md`, `CROSS-PLATFORM.md`, `RELEASES.md`, `DEVELOPMENT.md`).
+  - Added dedicated guides for search pipeline tokenization/ranking, filesystem atomic write guarantees, and cross-platform capabilities.
+
+### Changed
+- Standardized documentation naming and relative navigation across all workspace guides.
+- Clarified performance benchmarks as reproducible local measurements rather than static guarantees.
+
 ## [0.3.2] - 2026-10-04
 
 ### Added

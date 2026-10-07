@@ -6,11 +6,14 @@ This document records the official performance benchmarks, TypeScript compiler d
 
 ## 1. Executive Summary
 
-- **Total Unit & Feature Tests**: 70 passing (100% pass rate) across 13 test suites.
+- **Total Unit & Feature Tests**: 71 passing (100% pass rate) across 13 test suites.
 - **Strict TypeScript Diagnostics**: 0 errors across `@codeshelf/shared`, `apps/web`, `apps/desktop`, and `apps/vscode`.
-- **Myers Diff Performance**: ~85,000+ operations/sec for full line diffing; **1,800,000+ operations/sec** for diff statistics aggregation.
-- **Canonicalization & Taxonomy**: Over **1,800,000–2,200,000 operations/sec** for technology/language resolution.
-- **Data Compression**: GZIP stream compression roundtrips at **~1,480+ ops/sec**; metadata savings calculation executes at **350,000+ ops/sec**.
+- **Myers Diff Performance (Local test run)**: ~50,000–85,000+ operations/sec for full line diffing; **880,000–1,800,000+ operations/sec** for diff statistics aggregation.
+- **Canonicalization & Taxonomy (Local test run)**: Over **1,800,000–3,000,000 operations/sec** for technology/language resolution.
+- **Data Compression (Local test run)**: GZIP stream compression roundtrips at **~1,270–1,480+ ops/sec**; metadata savings calculation executes at **290,000–350,000+ ops/sec**.
+
+> [!NOTE]
+> All figures below represent historical and local micro-benchmark measurements on a specific test environment (Node v24 win32 x64). Actual performance will vary depending on hardware, operating system, and dataset sizes. These measurements do not constitute universal throughput guarantees.
 
 ---
 

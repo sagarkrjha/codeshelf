@@ -20,7 +20,7 @@ graph TD
         Models["Canonical Data Models<br/>(Snippet, Folder, Config)"]
         Taxonomy["Taxonomy & Normalization<br/>(Languages, Extensions, Technologies, Tags)"]
         Markdown["Markdown Engine<br/>(Serialization, Parsing, Fenced Blocks)"]
-        DiffEngine["Diff Engine<br/>(Myers O((N+M)D) SES & Line Diffs)"]
+        DiffEngine["Diff Engine<br/>(Myers O(ND) SES & Line Diffs)"]
         AI["AI Integration<br/>(@google/genai, Redaction, Autofill)"]
         Sync["Synchronization & Conflict Resolution<br/>(mergeSnippets, timestamp ordering)"]
     end
@@ -57,7 +57,15 @@ codeshelf/
 │   ├── ARCHITECTURE.md      # System architecture specification
 │   ├── BENCHMARKS.md        # Official performance & micro-benchmark reports
 │   ├── CHANGELOG.md         # Project change log & release history
-│   └── CONTRIBUTING.md      # Developer contribution guidelines
+│   ├── CONTRIBUTING.md      # Developer contribution guidelines
+│   ├── CROSS-PLATFORM.md    # Multi-environment capabilities and constraints
+│   ├── DEVELOPMENT.md       # Local development setup and contribution workflow
+│   ├── EXTENSION.md         # VS Code extension architecture and commands
+│   ├── INSTALLATION.md      # Installation and build instructions
+│   ├── RELEASES.md          # Release matrix, packaging, and distribution
+│   ├── SEARCH.md            # Search pipeline, tokenization, and ranking
+│   ├── STORAGE.md           # Filesystem layout, atomic writes, and sync
+│   └── USAGE.md             # End-user workflows and commands
 └── README.md                # Project landing documentation
 ```
 
@@ -154,7 +162,7 @@ sequenceDiagram
 
 ## 5. Visual Diff Engine (Myers SES)
 
-CodeShelf includes an in-house implementation of **Eugene W. Myers' $O((N+M)D)$ Difference Algorithm (1986)**:
+CodeShelf includes an in-house implementation of **Eugene W. Myers' $O(ND)$ Difference Algorithm (1986)**:
 - Operates along diagonals $k = x - y$ to compute the **Shortest Edit Script (SES)**.
 - Accurately reports `added`, `removed`, and `unchanged` lines.
 - Computes diff metrics across commits and snapshot rollbacks.

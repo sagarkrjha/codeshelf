@@ -4,143 +4,76 @@
 [![GitHub Release](https://img.shields.io/github/v/release/sagarkrjha/codeshelf?color=green&label=Latest%20Release&logo=github)](https://github.com/sagarkrjha/codeshelf/releases/latest)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Introduction
-
-**CodeShelf** is a developer-focused snippet knowledge system across desktop and IDE environments. It provides a unified, cross-platform workspace to capture, curate, search, and reuse code snippets seamlessly across daily development workflows.
-
-With native desktop applications for Windows, macOS, and Linux, paired with a dedicated Visual Studio Code extension, CodeShelf eliminates context switching and keeps your institutional code patterns and idiomatic solutions at your fingertips.
+CodeShelf is a developer snippet and knowledge management system spanning desktop and IDE environments. It provides a local-first workspace to capture, curate, search, and reuse code snippets across daily development workflows.
 
 ---
 
-## Solving Problem
+## Why CodeShelf?
 
-Software engineers frequently solve repetitive, non-trivial problems—such as bespoke concurrency patterns, complex configurations, API boilerplate, algorithm implementations, and database queries. However, managing this collective knowledge is traditionally fragmented:
+Software engineers often solve recurring, non-trivial problems—such as custom concurrency patterns, tricky configurations, boilerplate, and database queries. Storing these solutions across browser bookmarks, ephemeral gists, or chat logs introduces friction and context switching.
 
-- **Lost in Git History & Chat Logs**: Useful snippets end up buried across PRs, Discord/Slack messages, scratchpads, and disposable gists.
-- **Context Switching Overhead**: Leaving your code editor to search browsers, documentation, or personal note-taking apps interrupts developer flow.
-- **Lack of Usage Context**: Plain snippets rarely explain *why* code was written, *when* to use it, or *how* edge cases should be handled.
-- **Outdated Code & No Versioning**: Code evolves over time, but static notes lack revision history, visual diffs, and change tracking.
-- **Desynchronized Environments**: Desktop note tools don't integrate directly with code editors, requiring manual copy-pasting and formatting.
-
-**How CodeShelf solves this:**
-- **Single Source of Truth**: Centralized, local-first storage synchronized bidirectionally between your desktop app and IDE.
-- **In-Editor Capture & Insertion**: Save highlighted editor code or insert curated snippets instantly using global VS Code hotkeys without switching windows.
-- **Comprehensive Usage Framework**: Built-in What / Why / When / How documentation schema and language-agnostic AI autofill using modern Gemini models.
-- **Revision History & Visual Diffs**: Automatic snapshotting on every edit with Myers/LCS visual diffing and one-click rollback.
-- **Portable & Future-Proof**: Stored as clean, portable Markdown with YAML frontmatter for seamless Git integration and backup exports.
+CodeShelf centralizes this institutional knowledge in a single, local-first storage directory (`~/.codeshelf/`) synchronized bidirectionally between your desktop workspace and code editor.
 
 ---
 
-## Installations
+## Highlights
 
-### 1. Pre-built Binaries (Recommended)
-
-Download the latest release for your platform from the [GitHub Releases](https://github.com/sagarkrjha/codeshelf/releases/latest) page:
-
-- **Windows**:
-  - Installer: `CodeShelf.Setup.<version>.exe`
-  - Portable: `CodeShelf.<version>.exe`
-- **macOS**:
-  - Apple Silicon / Universal: `CodeShelf-<version>-arm64.dmg`
-- **Linux**:
-  - Debian / Ubuntu: `codeshelf-desktop_<version>_amd64.deb`
-  - Universal Linux: `CodeShelf-<version>.AppImage`
-- **VS Code Extension**:
-  - Direct VSIX package: `codeshelf-<version>.vsix`
-
-#### Installing the VS Code Extension (`.vsix`):
-```bash
-code --install-extension codeshelf-<version>.vsix
-```
-*Or via VS Code UI: Extensions view (`Ctrl+Shift+X`) -> `...` (Views and More Actions) -> **Install from VSIX...***
+- **Desktop, Web & IDE Environments**: Native desktop applications for Windows, macOS, and Linux, paired with a dedicated Visual Studio Code extension.
+- **Local-First & Offline**: Stored directly on disk at `~/.codeshelf/` using atomic writes. Operates 100% offline without mandatory network accounts.
+- **In-Editor Capture & Quick Insertion**: Capture selected editor code with heuristics or AI, and insert curated snippets at your cursor via global VS Code shortcuts.
+- **Technology-Aware Taxonomy**: Canonical normalization across programming languages, dotted file extensions, and technology tags.
+- **Lexical Relevance & Facet Search**: Instant substring search, query prefix filters (`lang:`, `tag:`, `folder:`, `domain:`), and weighted token relevance scoring.
+- **Myers Visual Diff Engine**: Automatic revision snapshotting with line-by-line additions, deletions, and one-click rollback.
+- **Optional Gemini AI Autofill**: Structured usage explanations, conventional commit message generation, and automatic metadata extraction using Google Gemini models (`gemini-3.8-flash`).
+- **Markdown & Portable Exports**: Full Markdown editing with multiple syntax-highlighted code fences, YAML frontmatter, and compressed backup archives (`.json.gz`).
 
 ---
 
-### 2. Building from Source
+## Supported Platforms
 
-#### Prerequisites
-- **Node.js**: v20 or v22+
-- **pnpm**: v10+ (tested with v12)
-
-#### Steps
-```bash
-# Clone the repository
-git clone https://github.com/sagarkrjha/codeshelf.git
-cd codeshelf
-
-# Install dependencies across all workspaces
-pnpm install
-
-# Build shared libraries and applications
-pnpm run build
-
-# Run unit tests and type checks
-pnpm run test
-pnpm run typecheck
-```
-
-#### Build Platform Packages
-```bash
-# Build desktop package for your current OS
-pnpm run desktop:dist
-
-# Target specific desktop platforms
-pnpm run desktop:dist:win     # Windows NSIS & Portable
-pnpm run desktop:dist:mac     # macOS DMG & Zip
-pnpm run desktop:dist:linux   # Linux AppImage & deb
-
-# Package the VS Code extension (.vsix)
-pnpm run vscode:package
-```
+| Platform | Environments / Artifacts | Distribution Format |
+|---|---|---|
+| **Windows** | Windows 10, Windows 11 (x64) | NSIS Installer (`.exe`), Portable (`.exe`) |
+| **macOS** | Apple Silicon (`arm64`), Intel | Disk Image (`.dmg`), Zip archive |
+| **Linux** | Ubuntu, Debian, Fedora, Arch | Debian package (`.deb`), AppImage (`.AppImage`) |
+| **Visual Studio Code** | VS Code `^1.85.0`, Cursor, VSCodium | VSIX package (`.vsix`), Marketplace, Open VSX |
+| **Web** | Modern Chromium browsers (Chrome, Edge, Brave) | File System Access API, Localhost dev server |
 
 ---
 
-## Usage
+## Technology Stack
 
-### In Visual Studio Code
-
-| Action | Shortcut / Command | Description |
-| :--- | :--- | :--- |
-| **Save Snippet with Heuristics** | `Ctrl+Alt+S` / `Cmd+Alt+S` | Captures highlighted code and pre-fills title, folder, language, and tags. |
-| **Save Snippet with AI Autofill** | `Ctrl+Alt+A` / `Cmd+Alt+A` | Uses Gemini AI to auto-generate title, description, folder, and What/Why/When/How sections. |
-| **Quick Search & Insert** | `Ctrl+Alt+F` / `Cmd+Alt+F` | Quick search across titles, folders, languages, and tags with action quick pick. |
-| **Insert Snippet at Cursor** | `Ctrl+Alt+I` / `Cmd+Alt+I` | Selects a snippet and inserts its code directly into the active editor. |
-| **Generate Commit Message** | `CodeShelf: Generate AI Commit Message` | Analyzes staged code or selection and generates conventional commit messages. |
-| **Configure Gemini API Key** | `CodeShelf: Configure Gemini API Key` | Stores your Google Gemini API key securely in configuration storage. |
-| **Snippets Explorer** | Activity Bar Icon (`Ctrl+Shift+E`) | Explore snippets grouped by folders and categories in the sidebar tree. |
+- **Monorepo Management**: [pnpm](https://pnpm.io/) workspaces
+- **Language**: TypeScript 7 (strict typechecking with zero emitted errors)
+- **UI Framework**: React 19, Tailwind CSS v4, Lucide icons, PrismJS
+- **Desktop Shell**: Electron 44, Context Isolation, secure IPC bridge
+- **Bundler & Tooling**: Vite 8, esbuild, @vscode/vsce
+- **Markdown & Parsing**: Unified, remark-parse, remark-stringify, marked
+- **AI Integration**: `@google/genai` (Gemini SDK with client-side credential sandboxing)
 
 ---
 
-### In CodeShelf Desktop
+## Documentation
 
-- **Browse & Filter**: Filter snippets by folder, category, subcategory, programming language, technology tag, or complexity.
-- **Search**: Use global instant search with prefix filters (e.g. `folder:algorithms`, `lang:typescript`, `tag:react`, `domain:frontend`).
-- **Create & Edit**:
-  - Direct editor transition without intermediate modals.
-  - Create snippets manually or use the **AI Autofill** button to analyze code and generate title, metadata, and structured What/Why/When/How usage docs.
-  - Markdown editor supports live preview, multiple syntax-highlighted code blocks, and custom usage notes.
-- **Version History & Rollback**:
-  - Open **History** on any snippet to view past revisions.
-  - Inspect color-coded additions and deletions via the built-in Myers visual diff engine.
-  - Roll back to any prior version with one click.
-- **Import & Export**:
-  - Export individual snippets as Markdown (`.md`) or the complete database as JSON (`.json`) and compressed archives (`.json.gz`).
-  - Import existing Markdown snippet files with automated frontmatter parsing and language detection.
-- **AI Settings**:
-  - Click the **AI Settings** icon in the sidebar to configure your Gemini API Key and select your preferred model (e.g., `gemini-3.8-flash`).
+Detailed technical documentation is available in the [`docs/`](docs/) directory:
 
----
-
-## Documentation & Guides
-
-Comprehensive specifications, architectural design, benchmarks, and community guides are organized in the [`docs/`](docs/) directory:
-
-- 🏛️ [**Architecture Guide**](docs/ARCHITECTURE.md) — Monorepo design, domain models, IPC security, and storage architecture.
-- ⚡ [**Benchmarks & Performance Report**](docs/BENCHMARKS.md) — Official micro-benchmarks, compiler diagnostics, and TAP metrics.
-- 📜 [**Changelog & Releases**](docs/CHANGELOG.md) — Release notes and audit/hardening history.
-- 🤝 [**Contribution Guidelines**](docs/CONTRIBUTING.md) — Development setup, conventions, PR process, and principles.
+| Document | Purpose |
+|---|---|
+| [Architecture](docs/ARCHITECTURE.md) | Monorepo layout, domain models, client boundaries, and IPC security |
+| [Installation](docs/INSTALLATION.md) | Prerequisites, environment setup, build scripts, and local execution |
+| [Usage](docs/USAGE.md) | Workflows in VS Code, Desktop, and Web applications |
+| [Search](docs/SEARCH.md) | Search pipeline, query prefix syntax, tokenization, and ranking |
+| [Storage](docs/STORAGE.md) | Persistence model, atomic file writes, IndexedDB handles, and conflict merging |
+| [VS Code Extension](docs/EXTENSION.md) | Extension commands, keybindings, Activity Bar explorer, and lifecycle |
+| [Cross-Platform](docs/CROSS-PLATFORM.md) | Capabilities, constraints, and platform differences |
+| [Releases](docs/RELEASES.md) | GitHub Actions release matrix, packaging, and update mechanism |
+| [Development](docs/DEVELOPMENT.md) | Contribution standards, package boundaries, testing, and Git conventions |
+| [Benchmarks](docs/BENCHMARKS.md) | Compiler diagnostics, TAP test metrics, and micro-benchmark results |
+| [Changelog](docs/CHANGELOG.md) | Release history, version notes, and audit fixes |
+| [Contributing](docs/CONTRIBUTING.md) | Code of conduct, branch conventions, and pull request guidelines |
 
 ---
 
-> **A Quick Note to Our Community:**  
-> We warmly invite you to review our [Changelog](docs/CHANGELOG.md) to explore recent updates and release notes. If you would like to help improve CodeShelf, report an issue, or propose a feature, we kindly encourage you to review our [Contribution Guidelines](docs/CONTRIBUTING.md). Your support, feedback, and contributions make this project better for all developers!
+## License
+
+CodeShelf is open source under the [MIT License](LICENSE).
