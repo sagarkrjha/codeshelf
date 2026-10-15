@@ -97,7 +97,7 @@ Standard TAP test execution via `tsx --test --test-reporter=tap`:
 2. **Data Compression**: GZIP and Base64 compression roundtrips, multi-byte UTF-8 handling, edge cases, compression metrics savings/ratio.
 3. **Configuration & Security**: Default configuration guarantees, permissions schema enforcement, config merging.
 4. **Cryptography**: NIST SHA-256 test vectors, async/sync equivalence, snippet content hash determinism.
-5. **Myers Diff Engine**: Minimal Shortest Edit Script (SES), edge cases (empty inputs, addition-only, deletion-only), line diff metrics calculation.
+5. **Myers Diff Engine**: Minimal Shortest Edit Script (SES), edge cases (empty inputs, addition-only, deletion-only), common suffix line order & numbering preservation, line diff metrics calculation.
 6. **Markdown Engine**: Multi-block sequence preservation, code heading isolation, metadata sync.
 7. **Similarity & Taxonomy**: Jaccard similarity, canonical technology mapping, duplicate elimination, semantic snippet ranking.
 8. **Versioning & History**: Semver comparisons, revision reconstruction, change summary detection.

@@ -76,3 +76,36 @@ test('computeDiffMetrics accurately calculates added, removed, unchanged and tot
   assert.ok(metrics.removed >= 1);
   assert.ok(metrics.unchanged >= 2);
 });
+
+test('myersDiff preserves common suffix line ordering and line numbers', () => {
+  const oldLines = ['header', 'middle1', 'footer1', 'footer2'];
+  const newLines = ['header', 'middle2', 'footer1', 'footer2'];
+  const diff = myersDiff(oldLines, newLines);
+
+  assert.equal(diff.length, 5);
+  assert.deepEqual(diff.map((d) => d.text), [
+    'header',
+    'middle1',
+    'middle2',
+    'footer1',
+    'footer2',
+  ]);
+  assert.deepEqual(diff.map((d) => d.type), [
+    'unchanged',
+    'removed',
+    'added',
+    'unchanged',
+    'unchanged',
+  ]);
+
+  // Check line numbers for suffix lines
+  const footer1 = diff[3];
+  assert.equal(footer1?.text, 'footer1');
+  assert.equal(footer1?.oldLineNumber, 3);
+  assert.equal(footer1?.newLineNumber, 3);
+
+  const footer2 = diff[4];
+  assert.equal(footer2?.text, 'footer2');
+  assert.equal(footer2?.oldLineNumber, 4);
+  assert.equal(footer2?.newLineNumber, 4);
+});
