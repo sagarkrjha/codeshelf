@@ -41,6 +41,11 @@ interface Snapshot {
   values: Int32Array;
 }
 
+interface DiffBuffers {
+  forward: Int32Array;
+  reverse: Int32Array;
+}
+
 const DEFAULT_COMPACT_THRESHOLD = 128;
 const DEFAULT_MAX_WORK = 10_000_000;
 
@@ -72,16 +77,55 @@ export function myersDiff(
   const result: DiffLine[] = [];
   const budget: Budget = { work: 0, maxWork };
 
+  const n = oldLines.length;
+  const m = newLines.length;
+
+  // 1. Integer Line Interning (String Comparison to Int32)
+  const lineMap = new Map<string, number>();
+  const aIds = new Int32Array(n);
+  const bIds = new Int32Array(m);
+
+  let nextId = 0;
+  for (let i = 0; i < n; i++) {
+    const line = oldLines[i] ?? "";
+    let id = lineMap.get(line);
+    if (id === undefined) {
+      id = nextId++;
+      lineMap.set(line, id);
+    }
+    aIds[i] = id;
+  }
+
+  for (let j = 0; j < m; j++) {
+    const line = newLines[j] ?? "";
+    let id = lineMap.get(line);
+    if (id === undefined) {
+      id = nextId++;
+      lineMap.set(line, id);
+    }
+    bIds[j] = id;
+  }
+
+  // 3. Scratch Buffer Reuse in Bidirectional Bisect
+  const maxTotal = n + m;
+  const buffers: DiffBuffers = {
+    forward: new Int32Array(2 * maxTotal + 3),
+    reverse: new Int32Array(2 * maxTotal + 3),
+  };
+
   diffRange(
     oldLines,
+    aIds,
     0,
-    oldLines.length,
+    n,
     newLines,
+    bIds,
     0,
-    newLines.length,
+    m,
     result,
     budget,
     compactThreshold,
+    buffers,
   );
 
   return result;
@@ -93,17 +137,20 @@ export function myersDiff(
  */
 function diffRange(
   a: string[],
+  aIds: Int32Array,
   a0: number,
   a1: number,
   b: string[],
+  bIds: Int32Array,
   b0: number,
   b1: number,
   out: DiffLine[],
   budget: Budget,
   threshold: number,
+  buffers: DiffBuffers,
 ): void {
-  // Emit common prefix.
-  while (a0 < a1 && b0 < b1 && a[a0] === b[b0]) {
+  // Emit common prefix using fast integer ID comparisons.
+  while (a0 < a1 && b0 < b1 && aIds[a0] === bIds[b0]) {
     out.push({
       type: "unchanged",
       text: a[a0] ?? "",
@@ -119,7 +166,7 @@ function diffRange(
   while (
     a0 < a1 &&
     b0 < b1 &&
-    a[a1 - 1] === b[b1 - 1]
+    aIds[a1 - 1] === bIds[b1 - 1]
   ) {
     a1--;
     b1--;
@@ -150,9 +197,9 @@ function diffRange(
     // but may not be a shortest edit script.
     emitReplacement(a, a0, a1, b, b0, b1, out);
   } else if (n + m <= threshold) {
-    compactMyers(a, a0, a1, b, b0, b1, out, budget);
+    compactMyers(a, aIds, a0, a1, b, bIds, b0, b1, out, budget);
   } else {
-    const split = bisect(a, a0, a1, b, b0, b1, budget);
+    const split = bisect(aIds, a0, a1, bIds, b0, b1, budget, buffers);
 
     if (
       split === null ||
@@ -167,15 +214,17 @@ function diffRange(
       const midB = b0 + split.y;
 
       diffRange(
-        a, a0, midA,
-        b, b0, midB,
+        a, aIds, a0, midA,
+        b, bIds, b0, midB,
         out, budget, threshold,
+        buffers,
       );
 
       diffRange(
-        a, midA, a1,
-        b, midB, b1,
+        a, aIds, midA, a1,
+        b, bIds, midB, b1,
         out, budget, threshold,
+        buffers,
       );
     }
   }
@@ -199,9 +248,11 @@ function diffRange(
  */
 function compactMyers(
   a: string[],
+  aIds: Int32Array,
   a0: number,
   a1: number,
   b: string[],
+  bIds: Int32Array,
   b0: number,
   b1: number,
   out: DiffLine[],
@@ -243,11 +294,8 @@ function compactMyers(
 
       let y = x - k;
 
-      while (x < n && y < m && a[a0 + x] === b[b0 + y]) {
-        if (!consumeWork(budget)) {
-          emitReplacement(a, a0, a1, b, b0, b1, out);
-          return;
-        }
+      // Hot loop: compare integer IDs directly and hoist work budget check outside
+      while (x < n && y < m && aIds[a0 + x] === bIds[b0 + y]) {
         x++;
         y++;
       }
@@ -304,7 +352,7 @@ function compactMyers(
     while (
       x > prevX &&
       y > prevY &&
-      a[a0 + x - 1] === b[b0 + y - 1]
+      aIds[a0 + x - 1] === bIds[b0 + y - 1]
     ) {
       reversed.push({
         type: "unchanged",
@@ -336,7 +384,7 @@ function compactMyers(
   while (
     x > 0 &&
     y > 0 &&
-    a[a0 + x - 1] === b[b0 + y - 1]
+    aIds[a0 + x - 1] === bIds[b0 + y - 1]
   ) {
     reversed.push({
       type: "unchanged",
@@ -380,16 +428,17 @@ interface Split {
  * Bidirectional Myers search.
  *
  * Searches from both ends and returns an overlap point.
- * The frontier arrays are linear in the subproblem size.
+ * Reuses pre-allocated scratch buffers across recursive calls.
  */
 function bisect(
-  a: string[],
+  aIds: Int32Array,
   a0: number,
   a1: number,
-  b: string[],
+  bIds: Int32Array,
   b0: number,
   b1: number,
   budget: Budget,
+  buffers: DiffBuffers,
 ): Split | null {
   const n = a1 - a0;
   const m = b1 - b0;
@@ -397,11 +446,12 @@ function bisect(
   const offset = maxD + 1;
   const length = 2 * maxD + 3;
 
-  const forward = new Int32Array(length);
-  const reverse = new Int32Array(length);
+  const forward = buffers.forward;
+  const reverse = buffers.reverse;
 
-  forward.fill(-1);
-  reverse.fill(-1);
+  // Wipe only the active slice [-maxD - 1, maxD + 1] per invocation
+  forward.fill(-1, 0, length);
+  reverse.fill(-1, 0, length);
   forward[offset + 1] = 0;
   reverse[offset + 1] = 0;
 
@@ -439,8 +489,8 @@ function bisect(
 
       let y = x - k;
 
-      while (x < n && y < m && a[a0 + x] === b[b0 + y]) {
-        if (!consumeWork(budget)) return null;
+      // Hot loop: compare integer IDs directly and hoist work budget check outside
+      while (x < n && y < m && aIds[a0 + x] === bIds[b0 + y]) {
         x++;
         y++;
       }
@@ -494,12 +544,12 @@ function bisect(
 
       let y = x - k;
 
+      // Hot loop: compare integer IDs directly and hoist work budget check outside
       while (
         x < n &&
         y < m &&
-        a[a1 - x - 1] === b[b1 - y - 1]
+        aIds[a1 - x - 1] === bIds[b1 - y - 1]
       ) {
-        if (!consumeWork(budget)) return null;
         x++;
         y++;
       }

@@ -4,6 +4,15 @@ All notable changes to the **CodeShelf** project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.5] - 2026-10-15
+
+### Performance
+- **Optimized Myers Difference Engine (`@codeshelf/shared/features/diff`)**:
+  - **Integer Line Interning**: Mapped all unique lines in `oldLines` and `newLines` to dense 32-bit integer IDs via `Map<string, number>`, passing `Int32Array` buffers down through recursion so snake equality comparisons operate on primitive Int32 values in V8 registers instead of string pointer dereferences.
+  - **Hot Loop Overhead & Work Budget Hoisting**: Hoisted `consumeWork(budget)` checks outside the inner diagonal snake matching loops in both `compactMyers` and bidirectional `bisect`, eliminating redundant function call overhead and preventing premature budget exhaustion during long contiguous matching runs.
+  - **Scratch Buffer Reuse in Bidirectional Bisect**: Pre-allocated shared `DiffBuffers` (`forward` and `reverse` `Int32Array` buffers sized to `2 * (n + m) + 3`) once at `myersDiff` entry and reused them across recursive bisection branches, wiping only active slices per call.
+  - **Preserved Exact Invariants**: Retained fast common prefix and suffix pruning, forward-order trailing common suffix reconstruction, synchronized 1-indexed line numbers (`oldLineNumber` & `newLineNumber`), and bounded-work fallback semantics (`emitReplacement`).
+
 ## [0.3.4] - 2026-10-15
 
 ### Fixed

@@ -163,10 +163,13 @@ sequenceDiagram
 ## 5. Visual Diff Engine (Myers SES)
 
 CodeShelf includes an in-house implementation of **Eugene W. Myers' $O(ND)$ Difference Algorithm (1986)**:
-- Operates along diagonals $k = x - y$ to compute the **Shortest Edit Script (SES)**.
-- Accurately reports `added`, `removed`, and `unchanged` lines.
-- Computes diff metrics across commits and snapshot rollbacks.
-- Operates in microsecond latency (>50,000 full diffs/second).
+- Operates along diagonals $k = x - y$ to compute the **Shortest Edit Script (SES)** with minimal edit distance.
+- **Integer Line Interning**: Maps unique string lines to dense 32-bit integer IDs (`Int32Array`) at entry so snake match equality tests run directly in V8 registers.
+- **Hoisted Work Budget**: Work budget accounting is hoisted outside inner snake loops to avoid function call overhead and early termination during long matching sequences.
+- **Scratch Buffer Reuse**: Bidirectional bisection reuses pre-allocated linear scratch buffers across recursion levels, wiping only active slices per branch.
+- Accurately reports `added`, `removed`, and `unchanged` lines with synchronized 1-indexed line numbers.
+- Computes diff metrics across commits and snapshot rollbacks with bounded-work fallback guarantees.
+- Operates in microsecond latency (>85,000–120,000+ full line diffs/second).
 
 ---
 
