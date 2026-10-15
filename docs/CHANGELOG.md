@@ -4,6 +4,18 @@ All notable changes to the **CodeShelf** project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.4] - 2026-10-15
+
+### Fixed
+- **Myers Diff Engine Common Suffix Order & Line Numbers**:
+  - Corrected trailing common suffix preservation in `diffRange` to append lines in natural forward sequence with synchronized 1-indexed line numbers.
+  - Added unit test suite verifying common suffix order, line numbers, and SES reconstruction.
+- **Strict TypeScript Compliance (`noUncheckedIndexedAccess`)**:
+  - Hardened typed array frontier accesses and string array indexing across `compactMyers` and `bisect` in `@codeshelf/shared/features/diff`.
+  - Configured compiler options in `packages/shared/tsconfig.json` to prevent type resolution conflicts.
+- **Desktop Build Script Dependency**:
+  - Added `@codeshelf/shared` build prerequisite to `build:electron` in `apps/desktop` to guarantee `./dist/index.js` exists before bundling.
+
 ## [0.3.3] - 2026-10-07
 
 ### Added
