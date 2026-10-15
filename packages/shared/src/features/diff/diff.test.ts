@@ -62,7 +62,14 @@ test('myersDiff computes minimal shortest edit script (SES)', () => {
 test('computeDiffMetrics accurately calculates added, removed, unchanged and total lines', () => {
   // Empty diff lines
   const emptyMetrics = computeDiffMetrics([]);
-  assert.deepEqual(emptyMetrics, { added: 0, removed: 0, unchanged: 0, total: 0 });
+  assert.deepEqual(emptyMetrics, {
+    added: 0,
+    removed: 0,
+    unchanged: 0,
+    total: 0,
+    changed: 0,
+    editDistance: 0,
+  });
 
   // Diff lines from computeLineDiff
   const oldText = 'line1\nline2\nline3';
