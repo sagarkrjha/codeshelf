@@ -73,22 +73,43 @@ export class SnippetsStorage {
       const data = JSON.stringify(finalSnippets, null, 2);
       this.lastKnownFileContent = data;
 
-      // Atomic write via temporary file
+      // Atomic write via temporary sibling file with durability barrier and retry loop
       const tempPath = path.join(CODESHELF_DIR, `.snippets.${Date.now()}.${Math.random().toString(36).slice(2, 8)}.tmp`);
       fs.writeFileSync(tempPath, data, 'utf-8');
+
+      // Durability barrier
       try {
-        fs.renameSync(tempPath, PRIMARY_SNIPPETS_FILE);
-      } catch {
-        if (fs.existsSync(PRIMARY_SNIPPETS_FILE)) {
-          try { fs.unlinkSync(PRIMARY_SNIPPETS_FILE); } catch {}
-        }
+        const fd = fs.openSync(tempPath, 'r+');
+        try { fs.fsyncSync(fd); } finally { fs.closeSync(fd); }
+      } catch {}
+
+      // Retry swap on Windows lock contention
+      const backoff = [10, 25, 50];
+      let swapped = false;
+      for (let attempt = 0; attempt <= 3; attempt++) {
         try {
           fs.renameSync(tempPath, PRIMARY_SNIPPETS_FILE);
-        } catch {
-          fs.writeFileSync(PRIMARY_SNIPPETS_FILE, data, 'utf-8');
-          if (fs.existsSync(tempPath)) {
-            try { fs.unlinkSync(tempPath); } catch {}
+          swapped = true;
+          break;
+        } catch (err: any) {
+          const isWinLock = process.platform === 'win32' && (err.code === 'EBUSY' || err.code === 'EPERM' || err.code === 'EACCES');
+          if (isWinLock && attempt < 3) {
+            try {
+              if (fs.existsSync(PRIMARY_SNIPPETS_FILE)) fs.unlinkSync(PRIMARY_SNIPPETS_FILE);
+            } catch {}
+            const start = Date.now();
+            const delay = backoff[attempt] ?? 50;
+            while (Date.now() - start < delay) {}
+            continue;
           }
+          break;
+        }
+      }
+
+      if (!swapped) {
+        fs.writeFileSync(PRIMARY_SNIPPETS_FILE, data, 'utf-8');
+        if (fs.existsSync(tempPath)) {
+          try { fs.unlinkSync(tempPath); } catch {}
         }
       }
     } catch (err) {

@@ -59,23 +59,71 @@ export function readConfigFile(): CodeShelfConfig {
 
 function atomicWriteFileSync(filePath: string, content: string): void {
   const dir = path.dirname(filePath);
-  const tempPath = path.join(dir, `.${path.basename(filePath)}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}.tmp`);
+  const tempPath = path.join(
+    dir,
+    `.${path.basename(filePath)}.${Date.now()}.${Math.random().toString(36).slice(2, 8)}.tmp`
+  );
+
+  // 1. Write content to temporary sibling file
   fs.writeFileSync(tempPath, content, 'utf-8');
+
+  // 2. Durability barrier: flush file buffers to physical media
   try {
-    fs.renameSync(tempPath, filePath);
-  } catch (err) {
-    // Fallback on Windows if destination file exists and is temporarily locked
+    const fd = fs.openSync(tempPath, 'r+');
     try {
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
+      fs.fsyncSync(fd);
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch (err) {
+    // If opening/fsync fails, continue to swap attempt
+  }
+
+  // 3. Atomic directory swap with retry loop for Windows file lock contention (EBUSY / EPERM)
+  const maxRetries = 3;
+  const backoffDelays = [10, 25, 50]; // milliseconds
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
       fs.renameSync(tempPath, filePath);
-    } catch {
-      // Final fallback to direct write
-      fs.writeFileSync(filePath, content, 'utf-8');
+      return; // Atomic swap succeeded!
+    } catch (err: any) {
+      const isWindowsLockError =
+        process.platform === 'win32' &&
+        (err.code === 'EBUSY' || err.code === 'EPERM' || err.code === 'EACCES');
+
+      if (isWindowsLockError && attempt < maxRetries) {
+        // Proactively attempt unlinking target if lingering advisory lock permits
+        try {
+          if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+          }
+        } catch {
+          // Ignore unlink errors during retry
+        }
+
+        // Synchronous sleep / busy-wait with exponential backoff delay
+        const delay = backoffDelays[attempt] ?? 50;
+        const start = Date.now();
+        while (Date.now() - start < delay) {
+          // busy wait spin for short millisecond intervals
+        }
+        continue;
+      }
+
+      // If last attempt or non-Windows error, fall back to direct overwrite
       try {
-        if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
-      } catch {}
+        fs.writeFileSync(filePath, content, 'utf-8');
+        return;
+      } catch (directErr) {
+        throw directErr;
+      } finally {
+        if (fs.existsSync(tempPath)) {
+          try {
+            fs.unlinkSync(tempPath);
+          } catch {}
+        }
+      }
     }
   }
 }

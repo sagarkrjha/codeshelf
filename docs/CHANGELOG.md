@@ -4,6 +4,17 @@ All notable changes to the **CodeShelf** project are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.6] - 2026-10-16
+
+### Fixed
+- **Atomic Persistence & Durability Barrier (`fsyncSync`)**:
+  - Enforced synchronous durability flushing (`fs.fsyncSync(fd)`) on temporary sibling files before initiating atomic directory swap across Desktop and VS Code extension storage routines, guaranteeing physical durability across power loss.
+  - Implemented exponential backoff retry loop (`[10ms, 25ms, 50ms]`) with proactive target unlinking on Windows to recover gracefully from transient file lock contention (`EBUSY`, `EPERM`, `EACCES`) caused by indexers, antivirus scanners, or editor language servers.
+  - Added guaranteed unlinking and cleanup of transient `.tmp` sibling buffers on unexpected write failures.
+
+### Documentation
+- Updated `docs/STORAGE.md` with sequence flow, durability barriers, and the Windows exponential backoff file lock recovery loop.
+
 ## [0.3.5] - 2026-10-15
 
 ### Performance

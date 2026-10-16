@@ -89,13 +89,16 @@ sequenceDiagram
     Note over Disk: Atomic swap guarantees complete data integrity
 ```
 
-1. Data is written to a temporary sibling file:
+1. Data is written to a unique temporary sibling file in the same directory:
    ```text
    ~/.codeshelf/.snippets.<timestamp>.<random-id>.tmp
    ```
-2. The file is flushed to disk.
+2. **Durability Barrier (`fsyncSync`)**: The temporary file descriptor is explicitly flushed to non-volatile physical storage via `fs.fsyncSync(fd)` before swapping.
 3. The temporary file is renamed atomically over `snippets.json` using `fs.renameSync`.
-4. **Windows File Lock Recovery**: If Windows briefly locks the target file during rename, the storage service catches the exception, unlinks the target if necessary, and completes the rename.
+4. **Windows File Lock Recovery Loop**: If Windows temporarily locks the destination file during rename (throwing `EBUSY`, `EPERM`, or `EACCES` due to search indexers, antivirus scanners, or editor language servers):
+   - The storage service executes an exponential backoff retry loop (10ms, 25ms, 50ms).
+   - On each retry iteration, it proactively attempts to unlink lingering locks via `fs.unlinkSync(filePath)`.
+   - If all retries fail, it safely falls back to a direct stream write and cleans up the temporary sibling file.
 
 ---
 
